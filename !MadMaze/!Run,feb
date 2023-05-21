@@ -1,0 +1,3 @@
+Set MadMaze$Dir <Obey$Dir>
+IconSprites <MadMaze$Dir>.!Sprites
+Run <MadMaze$Dir>.!RunImage

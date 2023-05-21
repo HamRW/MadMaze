@@ -1,0 +1,95 @@
+ __  __         _ __  __             
+|  \/  |__ _ __| |  \/  |__ _ ______ 
+| |\/| / _` / _` | |\/| / _` |_ / -_)
+|_|  |_\__,_\__,_|_|  |_\__,_/__\___|
+                                     
+Version 1.81 © Robert Hampton 1998-2004
+
+It drove everyone mad at my school. Unfortunately, they stopped using 
+Acorns (consarn it!) so my source of satisfaction was ended. So I've 
+released it here.
+
+MadMaze is, at first glance, a simple little game. You move a little # symbol 
+around the screen (let's call him Mr.Hash). Occasionally, Mr Hash will get 
+pulled into one of several sub-games. If he loses at this subgame, then it's 
+game over, and Mr Hash will be back at the start again.
+
+The Games
+---------
+Addled Addition -- solve the sum within ten seconds or you die.
+
+The Star-Struck Lion -- How fast are you able to read? A name appears on 
+screen for a fraction of a second. If you can't repeat it back, you'll be
+killed.
+
+Memory Jogger -- A combination to a safe appears on screen for a fraction 
+of a second, which you must memorise. If you fail, then you die!
+
+Searchlight -- You need to retrieve the key to a locked door. Unfortunately, 
+the key is guarded by a searchlight. You can hide behind rocks, but if the 
+searchlight spots you, you're captured. Which means you're dead. Again.
+
+Hilo -- A 10-sided dice is rolled five times. Gamble successfully on the 
+score being higher or lower each time and you'll escape. If not, your game is 
+over.
+
+Death Ride -- Navigate your little HaShipç through the Valley of Death 
+(no, not the one in that Gangsta Rap song). If you crash, you die.
+
+Fungus -- The screen is infested by Fungus. Can you escape to safety (AKA 
+a little flashing blob in the top-left hand corner) within 30 seconds?
+
+Bacteria -- The screen is infested by Bacteria. Can you escape to safety 
+(AKA a little flashing blob in the top-left hand corner) within 30 seconds?
+
+Yes, I know it sounds similar, but it's a different game. Honest guv.
+
+Rockfall -- Rocks are falling. Avoid them or they'll squash you. And you'll 
+be dead.
+
+Pigeon Hole -- Ten numbers appear at random. Get them in ascending order 
+in ten boxes, numbered from 0 to 9. Sounds easy? Well, it's not. If you get 
+one number out of order, the merciless Percy Pigeon will peck you to death. 
+You can discard three numbers by pressing D.
+
+Remember That Tune? -- you'll hear a sequence of notes, which you must then
+repeat back (by pressing keys 1 to 5). Get the sequence wrong and you die. You
+must get it right 4 times (the sequence lengthens each time) to win.
+
+Invisible Maze -- You're trapped in a maze with walls you can't see until you
+bump into them. You have one minute to maneuvre through the maze (using the
+cursor keys) and reach the exit.
+
+ALSO: Watch out for vortexes which will transport you to another place on the
+maze. This can be handy if they dump you near the exit, but, on the other
+hand, are not handy if they plop you back at the start.
+
+
+
+This game is, by my own admission, most unfair. Some of the games require 
+huge amounts of skill, in others you'll be relying solely on luck. But it'll
+keep you coming back for more...
+
+If you want flashy graphics, you're looking in the wrong place, matey. Just 
+imagine you're playing …lite or Iron Dignity. 
+
+!BOOT
+-----
+Note that from version 1.73 onwards MadMaze saves its high scores into the
+user's Choices directory if it exists. If you are not using a standard !Boot
+application (ie you are a RISC OS 3.1 user who has not installed the Universal
+Boot) MadMaze will continue to save scores in its application directory as
+previously.
+
+Licence
+-------
+This program is distributed as FREEWARE. It may be distributed freely as long
+as the program code and associated files within the !MadMaze application
+directory remain unchanged, and no charge is made other than a reasonable
+charge for distribution media. Copyright remains with me.
+
+Contact
+-------
+Email: software@roberthampton.me.uk
+WWW:   http://www.roberthampton.me.uk/software/
+

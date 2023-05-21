@@ -1,0 +1,2491 @@
+REM ><MadMaze$Dir>.!RunImage
+REM
+REM ROBERT HAMPTON's MadMaze
+REM Copyright (C) 1998-2016
+version$="1.90":testing%=TRUE
+SYS "Hourglass_Smash"
+*Channelvoice 1 WaveSynth-Beep
+*Channelvoice 2 StringLib-Pluck
+*Channelvoice 3 Percussion-Noise
+VOICES 4
+discard%=RND(-TIME)
+SYS "OS_Byte",4,1 TO ,old_OSByte4
+SYS "OS_Byte",11,32 TO ,old_OSByte11
+SYS "OS_Byte",12,10 TO ,old_OSByte12
+oldtempo%=TEMPO
+oldbeats%=BEATS
+ON ERROR MODE MODE:REPORT:PRINT " at line ";ERL:PROCend
+PROCinit
+REPEAT
+px%=0:py%=5:insane%=FALSE:highscorechallenge%=FALSE
+key$=FNtitle_screen
+IF (key$="G" OR key$="g") AND testing% THEN PROCtestgame:PROCend
+IF (key$="B" OR key$="b") AND testing% THEN PROCbonusgame:PROCend
+
+gameover%=FALSE:win%=FALSE
+score%=0
+PROCdrawscreen
+
+REPEAT
+oldx%=px%:oldy%=py%
+
+SYS "OS_Byte",21,0
+IF testing% THEN
+  REPEAT
+    key=GET
+  UNTIL (key>=136 AND key<=139) OR key=69 OR key=101
+ELSE
+  REPEAT:key=GET:UNTIL key>=136 AND key<=139
+ENDIF
+CASE key OF
+  WHEN 136:px%-=1
+  WHEN 137:px%+=1
+  WHEN 138:py%+=1
+  WHEN 139:py%-=1
+  WHEN 69,101:IF testing% THEN px%=39:py%=5
+ENDCASE
+falloff%=FALSE
+IF px%<0 THEN px%=0
+IF px%>39 THEN px%=39
+IF py%<1 OR py%>9 THEN falloff%=TRUE
+IF falloff%=FALSE THEN
+  IF MID$(maze$(py%),px%+1,1)=" " THEN falloff%=TRUE
+ENDIF
+IF insane% THEN
+  COLOUR colBLUE TINT tintBLUE
+ELSE
+  COLOUR colGREEN TINT tintGREEN
+ENDIF
+COLOUR colBLACK+128 TINT tintBLACK
+PRINT TAB(oldx%,10+oldy%);MID$(maze$(oldy%),oldx%+1,1)
+IF NOT falloff% THEN
+  IF insane% THEN
+    COLOUR colBLUE+128 TINT tintBLUE
+  ELSE
+    COLOUR colGREEN+128 TINT tintGREEN
+  ENDIF
+ELSE
+  COLOUR colBLACK+128 TINT tintBLACK
+ENDIF
+COLOUR colWHITE TINT tintWHITE
+PRINT TAB(px%,10+py%);"#"
+IF falloff%=FALSE THEN
+  IF MID$(maze$(py%),px%+1,1)="F" THEN
+    PROCwin
+  ENDIF
+ENDIF
+IF falloff% THEN
+  COLOUR colYELLOW TINT tintYELLOW
+  COLOUR colBLACK+128 TINT tintBLACK
+  PRINT TAB(6,21)"You have fallen off the path!"
+  PROClosesound:PROCpause(250)
+  gameover%=TRUE
+ELSE
+  IF insane% THEN score%+=10 ELSE score%+=5
+  PROCprintscore
+  IF RND(100)>60 AND win%=0 THEN
+    PROCbeep
+    COLOUR colBLACK+128 TINT tintBLACK
+    COLOUR colRED TINT tintRED:PROCdrawmadmaze
+    COLOUR colRED+128 TINT tintRED
+    COLOUR colWHITE TINT tintWHITE
+    PRINT TAB(px%,10+py%);"#"
+    COLOUR colBLACK TINT tintBLACK
+    PROCpause(50)
+    IF insane% THEN
+      COLOUR colBLUE TINT tintBLUE
+    ELSE
+      COLOUR colGREEN TINT tintGREEN
+    ENDIF
+    PROCdrawmadmaze
+    REPEAT
+      game2play%=RND(number_of_games%)
+    UNTIL gameused%(game2play%)=FALSE
+    gameused%(game2play%)=TRUE:gamesused%+=1
+
+    IF gamesused%>10 THEN gameused%()=FALSE:gamesused%=0
+    PROCplaygame(game2play%)
+    IF gameover%=FALSE THEN
+      PROCdrawscreen
+    ENDIF
+  ENDIF
+ENDIF
+IF testing%=TRUE THEN
+  IF INKEY-67 THEN gameover%=FALSE
+ENDIF
+IF win%=2 THEN win%=0
+UNTIL gameover% OR win%
+
+IF gameover% THEN
+  PROCgameover
+  REM PROCpause(200)
+ELSE
+  CLS
+  COLOUR colWHITE TINT tintwhite
+ENDIF
+PROChighscore
+UNTIL FALSE
+PROCend
+END
+
+DEF PROCwin
+win%=TRUE
+COLOUR colYELLOW TINT tintYELLOW
+COLOUR colBLACK+128 TINT tintBLACK
+PRINT TAB(6,21);"You have reached the exit!!!"
+PROCwinsound
+PROCpause(250)
+IF insane%=FALSE THEN
+ IF highscorechallenge%=FALSE THEN
+  PROCtune
+  CLS
+  COLOUR colBLACK+128 TINT tintBLACK
+  COLOUR colWHITE TINT tintWHITE
+  PRINT'''''''"Congratulations!"
+  PROCpause(200)
+  PRINT'"You have done what very few people have"
+  PRINT"managed to do.";
+  PROCpause(200)
+  PRINT" You have conquered..."'
+  PROCpause(200)
+  COLOUR colRED+128 TINT tintRED
+  COLOUR colYELLOW TINT tintYELLOW
+  PRINT"                "
+  PRINT"  THE MAD MAZE  "
+  PRINT"                "
+  PROCpause(200)
+  COLOUR colBLACK+128 TINT tintBLACK
+  CLS
+  PROCflashwelldone
+
+ ENDIF
+ PROCbonusgame
+ px%=0:py%=5
+ win%=2
+ PROCplotmazenew(FALSE)
+ IF highscorechallenge%=FALSE THEN
+  REM COLOUR 2,0,255,0
+  COLOUR colYELLOW TINT tintYELLOW
+  PRINT TAB(0,4);"OK... so you've beaten the Mad Maze..."
+  FOR loop%=1 TO 5
+    PROCsetcol(0,255-(loop%*25.5),loop%*25.5)
+    PROCdrawmadmaze
+    SOUND 1,-15,100,5
+    SOUND 1,-15,90,5,25
+    SOUND 1,-15,80,5,50
+    PROCpause(75)
+  NEXT loop%
+  COLOUR colYELLOW TINT tintYELLOW
+  PRINT TAB(0,6);"Let's see how you cope with this..."
+  FOR loop%=6 TO 10
+    PROCsetcol(0,255-(loop%*25.5),loop%*25.5)
+    PROCdrawmadmaze
+    SOUND 1,-15,100,5
+    SOUND 1,-15,90,5,25
+    SOUND 1,-15,80,5,50
+    PROCpause(75)
+  NEXT loop%
+  COLOUR colYELLOW TINT tintYELLOW
+  PRINT TAB(0,6);"We're going INSANE!                "
+  c%=0
+  COLOUR colRED+128 TINT tintRED
+  COLOUR colYELLOW TINT colYELLOW
+  FOR loop%=1 TO 201
+    c%=c% EOR 1
+    IF c%=1 THEN
+      PRINT TAB(0,0);"                 "
+      PRINT" THE INSANE MAZE "
+      PRINT"                 "
+    ELSE
+      PRINT TAB(0,0);"              "
+      PRINT" THE MAD MAZE "
+      PRINT"              "
+      COLOUR colBLACK+128 TINT tintBLACK
+      PRINT TAB(14,0);"   ";TAB(14,1);"   ";TAB(14,2);"   "
+      COLOUR colRED+128 TINT tintRED
+   ENDIF
+   SOUND 3,-15,100,1
+   PROCpause(1)
+  NEXT loop%
+  PROClosesound
+  insane%=TRUE
+  PROCpause(200)
+ ENDIF
+ COLOUR colWHITE TINT tintWHITE
+ COLOUR colBLACK+128 TINT tintBLACK
+ PRINT TAB(0,4);STRING$(40," ")
+ PRINT TAB(0,6);STRING$(40," ")
+ REM drop player
+ FOR loop%=3 TO py%+10
+   IF loop%>3 THEN PRINT TAB(px%,loop%-1);" "
+   PRINT TAB(px%,loop%);"#"
+   PROCpause(5)
+ NEXT loop%
+ PROCdrawscreen
+ELSE
+  PROCtune
+  CLS
+  COLOUR colBLACK+128 TINT tintBLACK
+  COLOUR colWHITE TINT tintWHITE
+  PRINT'''''''"WOW! You have beaten..."'
+  PROCpause(200)
+  COLOUR colRED+128 TINT tintRED
+  COLOUR colYELLOW TINT tintYELLOW
+  PRINT"                   "
+  PRINT"  THE INSANE MAZE  "
+  PRINT"                   "
+  PROCpause(200)
+  COLOUR colBLACK+128 TINT tintBLACK
+  COLOUR colWHITE TINT tintWHITE
+  PRINT'"Mr Hash can live happily ever"
+  PRINT"after."'
+  PROCpause(200)
+  PRINT"Great job! :-)"'
+  PROCpause(200)
+  COLOUR colBLACK+128 TINT tintBLACK
+  CLS
+  COLOUR colYELLOW TINT tintYELLOW
+  PRINT TAB(13,18);"(well, almost)"
+  PROCflashtheend
+  VDU 20
+  PROCbonusgame
+  win%=2:insane%=FALSE:highscorechallenge%=TRUE:px%=0:py%=5
+  PROCplotmazenew(FALSE)
+  COLOUR colYELLOW TINT colYELLOW
+  PRINT TAB(0,4);"I like to think the sky's the limit..."
+  PROCwinsound
+  PROCflashmaze
+  COLOUR colYELLOW TINT colYELLOW
+  PRINT TAB(0,6);"...so with that spirit in mind...     "
+  PROCwinsound
+  PROCflashmaze
+  PRINT TAB(0,4);STRING$(40," ")
+  COLOUR colYELLOW TINT colYELLOW
+  PRINT TAB(0,5);"The Mad Maze lives on!                "
+  PRINT TAB(0,6);STRING$(40," ")
+  PROCwinsound
+  PROCflashmaze
+  COLOUR colYELLOW TINT colYELLOW
+  PRINT TAB(0,4);"The game goes on and on...            "
+  PRINT TAB(0,5);STRING$(40," ")
+  PROCwinsound
+  PROCflashmaze
+  COLOUR colYELLOW TINT colYELLOW
+  PRINT TAB(0,6);"Just rack up that high score!         "
+  PROCwinsound
+  PROCflashmaze
+  REM COLOUR 2,2
+  COLOUR colGREEN TINT tintGREEN
+  PROCdrawmadmaze
+  PROCpause(200)
+  PRINT TAB(0,4);STRING$(40," ")
+  PRINT TAB(0,6);STRING$(40," ")
+  REM drop player
+  COLOUR colWHITE TINT tintWHITE
+  FOR loop%=3 TO py%+10
+   IF loop%>3 THEN PRINT TAB(px%,loop%-1);" "
+   PRINT TAB(px%,loop%);"#"
+   PROCpause(5)
+  NEXT loop%
+  PROCdrawscreen
+ENDIF
+ENDPROC
+
+DEF PROCsetcol(r%,g%,b%)
+SYS "ColourTrans_SetTextColour",(b%<<24)+(g%<<16)+(r%<<8)
+ENDPROC
+
+DEF PROCflashcolours(pausetime%)
+FOR loop%=1 TO 35
+  PROCpause(pausetime%)
+NEXT loop%
+ENDPROC
+
+DEF PROCflashmaze
+LOCAL loop%
+FOR loop%=1 TO 5
+  COLOUR colRED TINT tintRED:PROCdrawmadmaze:PROCpause(5)
+  COLOUR colGREEN TINT tintGREEN:PROCdrawmadmaze:PROCpause(5)
+  COLOUR colYELLOW TINT tintYELLOW:PROCdrawmadmaze:PROCpause(5)
+  COLOUR colBLUE TINT tintBLUE:PROCdrawmadmaze:PROCpause(5)
+  COLOUR colMAGENTA TINT tintMAGENTA:PROCdrawmadmaze:PROCpause(5)
+  COLOUR colCYAN TINT tintCYAN:PROCdrawmadmaze:PROCpause(5)
+  COLOUR colWHITE TINT tintWHITE:PROCdrawmadmaze:PROCpause(5)
+NEXT loop%
+ENDPROC
+
+DEF PROCflashwelldone
+LOCAL loop%
+FOR loop%=1 TO 5
+  COLOUR colRED TINT tintRED:PROCprintwelldone
+  COLOUR colGREEN TINT tintGREEN:PROCprintwelldone
+  COLOUR colYELLOW TINT tintYELLOW:PROCprintwelldone
+  COLOUR colBLUE TINT tintBLUE:PROCprintwelldone
+  COLOUR colMAGENTA TINT tintMAGENTA:PROCprintwelldone
+  COLOUR colCYAN TINT tintCYAN:PROCprintwelldone
+  COLOUR colWHITE TINT tintWHITE:PROCprintwelldone
+NEXT loop%
+ENDPROC
+
+DEF PROCflashtheend
+LOCAL loop%
+FOR loop%=1 TO 5
+  COLOUR colRED TINT tintRED:PROCprinttheend
+  COLOUR colGREEN TINT tintGREEN:PROCprinttheend
+  COLOUR colYELLOW TINT tintYELLOW:PROCprinttheend
+  COLOUR colBLUE TINT tintBLUE:PROCprinttheend
+  COLOUR colMAGENTA TINT tintMAGENTA:PROCprinttheend
+  COLOUR colCYAN TINT tintCYAN:PROCprinttheend
+  COLOUR colWHITE TINT tintWHITE:PROCprinttheend
+NEXT loop%
+ENDPROC
+
+DEF PROCprintwelldone
+PRINT TAB(2,12);"þ   þ þþþ þ   þ       þþ   þ  þþ  þþþ"
+PRINT TAB(2,13);"þ   þ þ   þ   þ       þ þ þ þ þ þ þ  "
+PRINT TAB(2,14);"þ þ þ þþ  þ   þ       þ þ þ þ þ þ þþ "
+PRINT TAB(2,15);"þþ þþ þ   þ   þ       þ þ þ þ þ þ þ  "
+PRINT TAB(2,16);"þ   þ þþþ þþþ þþþ     þþ   þ  þ þ þþþ"
+PROCpause(5)
+ENDPROC
+
+DEF PROCprinttheend
+PRINT TAB(2,12);"    þþþ þ þ þþþ     þþþ þþ  þþ "
+PRINT TAB(2,13);"     þ  þ þ þ       þ   þ þ þ þ"
+PRINT TAB(2,14);"     þ  þþþ þþ      þþ  þ þ þ þ"
+PRINT TAB(2,15);"     þ  þ þ þ       þ   þ þ þ þ"
+PRINT TAB(2,16);"     þ  þ þ þþþ     þþþ þ þ þþ "
+PROCpause(5)
+ENDPROC
+
+DEF PROCgameover
+LOCAL x%,y%,t%,key$
+REM MAKE SURE red and white colours are reset to normal
+REM COLOUR 1,255,0,0
+REM COLOUR 7,255,255,255
+GCOL colRED TINT tintRED
+FOR y%=576 TO 0 STEP-32
+t%=TIME
+FOR x%=0 TO 640 STEP 16
+   ELLIPSE FILL x%,y%,8,32+RND(64)
+NEXT x%
+REPEAT:UNTIL TIME-t%>8
+NEXT y%
+COLOUR colRED+128 TINT tintRED
+COLOUR colWHITE TINT tintWHITE
+CLS:PRINT TAB(15,15);"GAME OVER"
+VDU 20
+SYS "OS_Byte",15,1
+PROCpause(200)
+ENDPROC
+
+DEF PROCbonusgame
+LOCAL x%,y%,oldx%,oldy%,bonusblob%(),key,t%
+COLOUR colBLUE+128 TINT tintBLUE
+COLOUR colYELLOW TINT tintYELLOW
+CLS
+PRINT TAB(14,14);"BONUS GAME!"
+PRINT TAB(12,16);"Collect the +'s"
+PRINT TAB(10,18);"You have 15 seconds"
+PROCpause(250)
+CLS:OFF:bonus%=0:mins%=0:secs%=15
+IF insane% THEN secs%+=5
+COLOUR colBLACK+128 TINT tintBLACK
+COLOUR colWHITE TINT tintWHITE
+PRINT TAB(0,0);"B=000000";STRING$(28," ");
+PRINT TAB(36,0);"T=";secs%
+COLOUR colBLUE+128 TINT tintBLUE
+OSCLI"FX 11 10":OSCLI"FX 12 10"
+x%=19:y%=15:DIM bonusblob%(39,30):bonusblob%()=FALSE
+
+COLOUR colBLUE+128 TINT tintBLUE
+COLOUR colYELLOW TINT tintYELLOW
+IF insane% THEN n%=2 ELSE n%=1
+FOR yloop%=0 TO 30
+  FOR l%=1 TO n%
+    REPEAT
+      xloop%=RND(40)-1
+    UNTIL bonusblob%(xloop%,yloop%)=FALSE
+    bonusblob%(xloop%,yloop%)=TRUE
+    PRINT TAB(xloop%,yloop%+1);"+";
+  NEXT l%
+NEXT yloop%
+COLOUR colWHITE TINT colWHITE
+PRINT TAB(x%,y%);"#";
+t%=TIME
+SOUND 3,-15,100,1
+REPEAT
+  oldx%=x%:oldy%=y%
+  key=INKEY(0)
+  CASE key OF
+    WHEN 136:x%-=1
+    WHEN 137:x%+=1
+    WHEN 138:y%+=1
+    WHEN 139:y%-=1
+  ENDCASE
+  IF x%<0 THEN x%=0
+  IF x%>39 THEN x%=39
+  IF y%<1 THEN y%=1
+  IF y%>31 THEN y%=31
+  IF oldx%<>x% OR oldy%<>y% THEN
+    COLOUR colWHITE TINT colWHITE
+    PRINT TAB(oldx%,oldy%);" ";
+    PRINT TAB(x%,y%);"#";
+    IF bonusblob%(x%,y%-1) THEN
+      bonus%+=500
+      COLOUR colBLACK+128 TINT tintBLACK
+      COLOUR colWHITE TINT tintWHITE
+      PRINT TAB(2,0);RIGHT$("000000"+STR$(bonus%),6)
+      COLOUR colBLUE+128 TINT tintBLUE
+      bonusblob%(x%,y%-1)=FALSE
+      PROCbeep
+    ENDIF
+  ENDIF
+  IF TIME-t%>100 THEN
+    secs%-=1
+    IF secs%<>0 THEN SOUND 3,-15,100,1
+    COLOUR colBLACK+128 TINT tintBLACK
+    COLOUR colWHITE TINT tintWHITE
+    IF secs%>9 THEN PRINT TAB(38,0);secs% ELSE PRINT TAB(38,0);"0";secs%
+    COLOUR colBLUE+128 TINT tintBLUE
+    t%=TIME
+  ENDIF
+UNTIL secs%=0
+SYS "OS_Byte",21,0
+COLOUR colBLACK+128 TINT tintBLACK
+COLOUR colMAGENTA TINT tintMAGENTA:REM flashing
+PRINT TAB(9,14);"  END OF BONUS LEVEL  "
+OSCLI"FX 11 32":OSCLI"FX 12 10"
+PROCwinsound
+PROCpause(250)
+PRINT TAB(9,16);"    BONUS = "+RIGHT$("000000"+STR$(bonus%),6)+"    "
+score%=score%+bonus%
+PROCpause(250)
+COLOUR colWHITE TINT tintWHITE
+ENDPROC
+
+DEF PROChighscore
+LOCAL x%,y%,loop%,file%
+  IF score%>hiscore%(10) THEN
+  PROCtitles
+  COLOUR colBLUE+128 TINT tintBLUE
+  COLOUR colWHITE TINT tintWHITE
+  FOR loop%=1 TO 15
+  PRINT TAB(5,loop%+7);STRING$(30," ")
+  NEXT loop%
+
+  PRINT TAB(7,10);"You have got a high score!"
+  PRINT TAB(9,14);"Please enter your name"
+  ON
+
+  PRINT TAB(6,17)STRING$(29," ")
+  SYS "OS_Byte",21,0
+  PRINT TAB(12,17);
+  SYS "OS_ReadLine",hiscorebuffer%,17,32,126
+
+  OFF
+  x%=1
+  WHILE score%<hiscore%(x%):x%=x%+1:ENDWHILE
+  FOR y%=9 TO x% STEP -1
+  hiname$(y%+1)=hiname$(y%):hiscore%(y%+1)=hiscore%(y%)
+  NEXT y%
+  hiname$(x%)=$hiscorebuffer%:hiscore%(x%)=score%
+  IF usenewboot% THEN
+    OSCLI"CDir <Choices$Write>.MadMaze"
+    file%=OPENOUT("<Choices$Write>.MadMaze.HiScores")
+  ELSE
+    file%=OPENOUT("<MadMaze$Dir>.HiScores")
+  ENDIF
+  FOR loop%=1 TO 10
+    PRINT#file%,hiname$(loop%)
+    PRINT#file%,hiscore%(loop%)
+  NEXT loop%
+  CLOSE#file%
+ENDIF
+ENDPROC
+
+DEF PROCdrawscreen
+VDU20
+PROCplotmazenew(TRUE)
+COLOUR colWHITE TINT tintWHITE
+IF insane% THEN
+PRINT TAB(0,4);"You don't stand a chance!"
+ENDIF
+IF NOT insane% THEN
+ IF NOT highscorechallenge% THEN
+  PRINT TAB(0,4);"You'll never get out alive!"
+ ELSE
+  PRINT TAB(0,4);"High Score Challenge"
+ ENDIF
+ENDIF
+PRINT TAB(0,6);"Use cursor keys to move"
+ENDPROC
+
+DEF PROCplotmazenew(printplayer%)
+LOCAL string$
+COLOUR colBLACK+128 TINT tintBLACK
+CLS
+PROCprintlogo:PROCprintscore
+COLOUR colBLACK+128 TINT tintBLACK
+COLOUR colWHITE TINT tintWHITE
+IF insane% THEN
+  COLOUR colBLUE TINT tintBLUE
+ELSE
+  COLOUR colGREEN TINT tintGREEN
+ENDIF
+PROCdrawmadmaze
+IF printplayer% THEN
+  IF MID$(maze$(py%),px%+1,1)=" " THEN
+    COLOUR colGREEN+128 TINT tintGREEN
+  ELSE
+    IF insane% THEN
+      COLOUR colBLUE+128 TINT tintBLUE
+    ELSE
+      COLOUR colGREEN+128 TINT tintGREEN
+    ENDIF
+  ENDIF
+  COLOUR colWHITE TINT tintWHITE:REM flash
+  PRINT TAB(px%,10+py%);"#"
+ENDIF
+COLOUR colBLACK+128 TINT tintBLACK
+COLOUR colWHITE TINT tintWHITE
+ENDPROC
+
+DEF PROCdrawmadmaze
+LOCAL loop%
+FOR loop%=1 TO 9
+  PRINT TAB(0,10+loop%);maze$(loop%)
+NEXT loop%
+
+ENDPROC
+
+DEF PROCprintlogo
+COLOUR colRED+128 TINT tintRED
+COLOUR colYELLOW TINT tintYELLOW
+IF insane% THEN
+  PRINT TAB(0,0);"                 "
+  PRINT " THE INSANE MAZE "
+  PRINT "                 "
+ELSE
+  PRINT TAB(0,0);"              "
+  PRINT " THE MAD MAZE "
+  PRINT "              "
+ENDIF
+PROCprintscore
+ENDPROC
+
+DEF PROCprintscore
+COLOUR colCYAN+128 TINT colCYAN
+COLOUR colBLUE TINT colBLUE
+PRINT TAB(30,1);"  ";RIGHT$("000000"+STR$(score%),6);"  "
+ENDPROC
+
+DEF PROCpause(length%)
+LOCAL t%
+t%=TIME
+REPEAT:UNTIL TIME-t%>length%
+ENDPROC
+
+DEF PROCtestgame
+score%=0
+REPEAT
+  gameover%=FALSE
+  COLOUR colBLACK+128 TINT tintBLACK
+  COLOUR colWHITE TINT tintWHITE
+  CLS
+  PRINT TAB(0,0);"Score : ";score%
+  IF insane% THEN PRINT TAB(0,1);"INSANE MODE"
+  PRINT TAB(5,3);"Test game:"
+  PRINT TAB(5,5);"1. Addled Addition"
+  PRINT TAB(5,6);"2. What's my name?"
+  PRINT TAB(5,7);"3. Memory Jogger"
+  PRINT TAB(5,8);"4. Searchlight"
+  PRINT TAB(5,9);"5. Hilo"
+  PRINT TAB(5,10);"6. Death Ride"
+  PRINT TAB(5,11);"7. Fungus"
+  PRINT TAB(5,12);"8. Lurgi"
+  PRINT TAB(5,13);"9. Vortex (n/a)"
+  PRINT TAB(4,14);"10. Rockfall!"
+  PRINT TAB(4,15);"11. Pigeon Hole"
+  PRINT TAB(4,16);"12. Remember that Tune"
+  PRINT TAB(4,17);"13. Invisible Maze"
+  COLOUR colYELLOW TINT tintYELLOW
+  PRINT TAB(4,22);"99. Insane on/off"
+  COLOUR colGREEN TINT tintGREEN
+  PRINT TAB(5,24);"0. Quit"
+  COLOUR colCYAN TINT tintCYAN
+  ON
+  score%=0
+  REPEAT
+    INPUT TAB(5,26);"Choose: ";n%
+  UNTIL ((n%>=0 AND n%<=13) OR n%=99) AND n%<>9
+  OFF
+  IF n%=99 THEN
+    IF insane%=TRUE THEN insane%=FALSE ELSE insane%=TRUE
+  ELSE
+    PROCplaygame(n%)
+    IF gameover%=TRUE THEN
+      PROCgameover
+    ENDIF
+  ENDIF
+UNTIL n%=0
+ENDPROC
+
+DEF PROCplaygame(n%)
+COLOUR colBLACK+128 TINT tintBLACK
+COLOUR colWHITE TINT tintWHITE
+IF n%<>9 THEN CLS
+bonus%=0
+CASE n% OF
+  WHEN 1:PROCsum
+  WHEN 2:PROCname
+  WHEN 3:PROCmemory
+  WHEN 4:PROCsearchlight
+  WHEN 5:PROChilo
+  WHEN 6:PROCdeath
+  WHEN 7:PROCmultiply("FUNGUS","X")
+  WHEN 8:PROCmultiply("BACTERIA","%")
+  WHEN 9:PROCbottomless
+  WHEN 10:PROCrockfall
+  WHEN 11:PROCpigeonhole
+  WHEN 12:PROCsequence
+  WHEN 13:PROCinvisiblemaze
+ENDCASE
+ENDPROC
+
+REM the games
+REM 1 - add up the sum
+REM 2 - what's my name?
+REM 3 - Memory jogger
+REM 4 - Searchlight
+REM 5 - Hi-lo
+REM 6 - Death ride
+REM 7&8 Multiplying Zig-Zaggers / Lurgi
+REM 9 - Bottomless pit
+REM     Note that this cannot be played
+REM     from the test menu!
+REM 10- Rock fall
+REM 11- Pidgeon Hole
+
+DEF PROCsum
+LOCAL n%(),loop%,answer$,t%,total%,secs%
+DIM n%(5)
+CLS
+IF insane% THEN secs%=7 ELSE secs%=10
+COLOUR colRED+128 TINT tintRED
+COLOUR colYELLOW TINT tintYELLOW
+PRINT TAB(0,0);"ADDLED ADDITION"
+COLOUR colBLACK+128 TINT tintBLACK
+COLOUR colWHITE
+FOR loop%=1 TO 5
+  IF insane% THEN n%(loop%)=RND(30) ELSE n%(loop%)=RND(15)
+NEXT loop%
+
+COLOUR colMAGENTA TINT tintMAGENTA
+PRINT''"Solve the sum within ";
+COLOUR colWHITE TINT tintWHITE
+IF insane%=TRUE THEN
+  PRINT" 7";
+ELSE
+  PRINT"10";
+ENDIF
+COLOUR colMAGENTA TINT tintMAGENTA
+PRINT" seconds:"
+PROCpause(200)
+PRINT TAB(5,9);
+total%=0
+COLOUR colYELLOW TINT tintYELLOW
+PRINT ;n%(1);:total%=n%(1)
+FOR loop%=2 TO 5
+  PROCbeep
+  PROCpause(25)
+  PRINT ;" + ";n%(loop%);
+  total%+=n%(loop%)
+NEXT loop%
+
+
+answer$=""
+COLOUR colMAGENTA TINT tintMAGENTA
+PRINT TAB(3,12);"> ";
+ON:SYS "OS_Byte",21,0
+REPEAT
+  SOUND 3,-15,100,1
+
+  OFF
+  COLOUR colWHITE TINT tintWHITE
+  PRINT TAB(21,3);
+  IF secs%<10 THEN PRINT" ";
+  PRINT ;secs%
+  PRINT TAB(5+LEN(answer$),12);
+  ON
+  t%=TIME
+  REPEAT
+    key$=INKEY$(0)
+    IF key$<>"" THEN
+      f%=TRUE
+      CASE key$ OF
+        WHEN CHR$(127),CHR$(8):IF LEN(answer$)>1 THEN
+                         answer$=LEFT$(answer$)
+                       ELSE
+                         answer$=""
+                       ENDIF
+        WHEN "1","2","3","4","5","6","7","8","9","0"
+        IF LEN(answer$)<3 THEN
+          answer$+=key$
+        ELSE
+          VDU 7
+        ENDIF
+      OTHERWISE
+        f%=FALSE
+      ENDCASE
+      IF f%=TRUE THEN
+        COLOUR colCYAN TINT tintCYAN
+        PRINT TAB(5,12);STRING$(10," ")
+        PRINT TAB(5,12);answer$;
+      ENDIF
+  ENDIF
+    time%=TIME-t%
+  UNTIL key$=CHR$(13) OR TIME-t%>100
+  IF key$<>CHR$(13) THEN secs%-=1
+UNTIL secs%=0 OR key$=CHR$13
+OFF
+COLOUR colMAGENTA TINT tintMAGENTA:REM flashing mag/grn
+IF secs%=0 THEN
+  COLOUR colGREEN TINT tintGREEN
+  PRINT TAB(21,3);" 0"
+  IF total%<>VAL(answer$) THEN
+    PRINT TAB(5,15);"Time up! You're zapped!"
+    PROClosesound
+    COLOUR colWHITE TINT tintWHITE
+    PRINT TAB(5,17);"Correct answer : ";
+    COLOUR colYELLOW TINT tintYELLOW
+    PRINT ;total%
+    PROCpause(250)
+    gameover%=TRUE
+  ELSE
+    PRINT TAB(5,15);"You got it right... you live."
+    PROCwinsound
+    PROCpause(250)
+  ENDIF
+ENDIF
+IF key$=CHR$(13) THEN
+  IF total%=VAL(answer$) THEN
+    PRINT TAB(5,15);"You got it right... you live."
+    PROCwinsound
+    PROCpause(250)
+  ELSE
+    PRINT TAB(5,15);"Wrong! You're zapped!"
+    PROClosesound
+    COLOUR colWHITE TINT tintWHITE
+    PRINT TAB(5,17);"Correct answer : ";
+    COLOUR colGREEN TINT tintGREEN
+    PRINT ;total%
+    PROCpause(250)
+    gameover%=TRUE
+  ENDIF
+ENDIF
+IF gameover%=FALSE THEN
+  bonus%=(total%*20)
+  score%+=bonus%
+  COLOUR colWHITE TINT tintWHITE
+  PRINT TAB(5,17);"BONUS = ";bonus%
+  PROCpause(250)
+ENDIF
+ENDPROC
+
+DEF PROCname
+LOCAL no_of_names%,name_to_use%,loop%
+RESTORE +0
+
+READ no_of_names%
+name_to_use%=RND(no_of_names%)
+FOR loop%=1 TO name_to_use%
+  READ name$
+NEXT loop%
+CLS
+COLOUR colRED+128 TINT tintRED
+COLOUR colYELLOW TINT tintYELLOW
+PRINT TAB(0,0);"THE STAR-STRUCK LION"
+COLOUR colBLACK+128 TINT tintBLACK
+COLOUR colWHITE TINT tintWHITE
+PRINT'"Which celebrity does the lion think he"'"is today? Get it wrong and you'll die!"
+PRINT'"A flash of lightning will reveal it"'"for a brief moment..."
+COLOUR colYELLOW+128 TINT tintYELLOW
+COLOUR colBLUE TINT tintBLUE
+PRINT TAB(0,9);STRING$(120," ");
+PROCpause(250+RND(100))
+PROCbeep
+PRINT TAB(20-LEN(name$)/2,10);name$
+IF insane% THEN PROCpause(5) ELSE PROCpause(10)
+
+PRINT TAB(20-LEN(name$)/2,10);STRING$(LEN name$," ")
+
+COLOUR colYELLOW TINT tintYELLOW
+COLOUR colBLACK+128 TINT tintBLACK
+PRINT TAB(5,13);"Grrr.... what's my name?"
+COLOUR colWHITE TINT tintWHITE
+SYS "OS_Byte",21,0
+ON
+INPUT TAB(3,15);"> "answer$
+OFF
+answer$=FNtoupper(answer$)
+PRINT TAB(5,15);answer$
+COLOUR colMAGENTA TINT tintMAGENTA
+PRINT TAB(5,17);"Hang on...";
+PROCpause(125)
+PRINT " let me think..."
+PROCpause(125)
+COLOUR colYELLOW+128 TINT tintYELLOW
+COLOUR colBLUE TINT tintBLUE:REM flashing yel/blue
+PRINT TAB(20-LEN(name$)/2,10);name$
+COLOUR colBLACK+128 TINT tintBLACK
+COLOUR colGREEN TINT tintGREEN:REM flashing mag/grn
+IF answer$<>name$ THEN
+  PROClosesound
+  PRINT TAB(5,19);"WRONG!!!!!"
+  PROCpause(250)
+  gameover%=TRUE
+ELSE
+  PROCwinsound
+  PRINT TAB(5,19);"Mmm.. OK that's right."
+  PROCpause(250)
+  bonus%=(LEN(name$)*75)
+  IF insane% THEN bonus%=bonus%*2
+  COLOUR colCYAN TINT tintCYAN
+  PRINT TAB(5,21);"BONUS = ";bonus%
+  PROCpause(250)
+  score%+=bonus%
+ENDIF
+ENDPROC
+
+DATA 41
+DATA CHRIS TARRANT,CLIVE ANDERSON,GREG PROOPS,JOSIE LAWRENCE
+DATA JOHN SIMPSON,ROBERT HAMPTON,WILLIAM HAGUE
+DATA PETER MANDELSON,HOMER SIMPSON,ASH KETCHUM,SAILOR MOON
+DATA ANGUS DEAYTON,PRINCESS DIANA,WILLIAM SHATNER,PAUL DANIELS
+DATA PRINCE CHARLES
+DATA DESMOND TUTU,NOEL EDMONDS,TONY SLATTERY,JEREMY BEADLE
+DATA PRISCILLA WHITE,GORDON THE GOPHER
+DATA ARNOLD RIMMER,VICTOR MELDREW,STEPHEN FRY,JAMES WATT
+DATA CHRIS EVANS,PAUL MERTON,IAN HISLOP
+DATA POPE JOHN PAUL,BENJAMIN SISKO,ROBBIE WILLIAMS
+DATA ROWAN ATKINSON,NEVILLE GARDINER
+DATA QUENTIN CRISP,MICHAEL CAINE,LADY GODIVA,DESMOND LYNAM
+DATA JO BRAND,PETER THE GREAT,VICTORIA WOOD
+
+DEF PROCmemory
+LOCAL combination$
+CLS:OFF
+IF insane%=TRUE THEN length%=7 ELSE length%=5
+bonus%=0
+COLOUR colRED+128 TINT tintRED
+COLOUR colYELLOW TINT tintYELLOW
+PRINT TAB(0,0);"MEMORY JOGGER"
+COLOUR colBLACK+128 TINT tintBLACK
+COLOUR colGREEN TINT tintGREEN
+PRINT''"Memorise the combination to escape with"'"your life. A flash of lightning will"'"reveal it briefly:"
+
+COLOUR colWHITE TINT colWHITE
+PRINT TAB(20-((length%*2)+1)/2,9);STRING$((length%*2)+1,"-")
+PRINT TAB(20-((length%*2)+1)/2,11);STRING$((length%*2)+1,"-")
+FOR loop%=1 TO length%
+  combination$+=CHR$(RND(26)+64)
+NEXT loop%
+
+PROCpause(250)
+
+COLOUR colYELLOW TINT tintYELLOW
+PROCbeep
+bonus%=0
+FOR loop%=1 TO length%
+  PRINT TAB((19-((length%*2)+1)/2)+loop%*2,10);MID$(combination$,loop%,1)
+NEXT loop%
+IF insane% THEN PROCpause(30) ELSE PROCpause(25)
+
+
+PRINT TAB((21-((length%*2)+1)/2),10);STRING$(length%*2," ")
+
+COLOUR colWHITE TINT tintWHITE
+PRINT TAB(5,16);"Key in the combination"
+ON
+flag%=FALSE
+COLOUR colCYAN TINT tintCYAN
+loop%=1
+WHILE loop%<=length% AND NOT flag%
+  PRINT TAB((19-((length%*2)+1)/2)+loop%*2,12);
+  REPEAT
+    key$=FNtoupper(GET$)
+  UNTIL key$>="A" AND key$<="Z"
+  PRINT key$;
+  IF key$<>MID$(combination$,loop%,1) THEN
+    flag%=TRUE
+  ELSE
+    bonus%+=200
+  ENDIF
+  loop%+=1
+ENDWHILE
+OFF
+COLOUR colYELLOW TINT tintYELLOW
+FOR loop%=1 TO length%
+  PRINT TAB((19-((length%*2)+1)/2)+loop%*2,10);MID$(combination$,loop%,1)
+NEXT loop%
+IF flag% THEN
+  COLOUR colMAGENTA TINT tintMAGENTA:REM flashing mg/grn
+  PROClosesound
+  PRINT TAB(5,18);"WRONG!!!"
+  gameover%=TRUE:score%+=bonus%
+ELSE
+  bonus%+=500
+  COLOUR colGREEN TINT tintGREEN:REM flashing mg/grn
+  PROCwinsound
+  PRINT TAB(5,18);"You won't be so lucky next time!!!"
+
+  PROCpause(250)
+  COLOUR colWHITE TINT tintWHITE
+  PRINT TAB(5,20);"BONUS = ";bonus%
+  score%+=bonus%
+ENDIF
+PROCpause(250)
+ENDPROC
+
+DEF PROCsearchlight
+LOCAL no_of_sls%,pos%,light%,f%,grid$,sl_to_use%
+IF insane% THEN secs%=15 ELSE secs%=20
+mins%=0
+CLS
+COLOUR colRED+128 TINT tintRED
+COLOUR colYELLOW TINT tintYELLOW
+PRINT TAB(0,0);"SEARCHLIGHT"
+COLOUR colBLACK+128 TINT tintBLACK
+COLOUR colWHITE TINT tintWHITE
+PRINT''"A locked door lies ahead. You need the"
+PRINT"key. Get the key and go back to your"
+PRINT"starting position to unlock the door,"
+PRINT"but don't be in open ground when the"
+PRINT"searchlight comes on, or you will be"
+PRINT"captured and killed."'
+COLOUR colCYAN TINT tintCYAN
+PRINT"You have just ";
+COLOUR colMAGENTA TINT tintMAGENTA
+PRINT;secs%;
+COLOUR colCYAN TINT tintCYAN
+PRINT" seconds to get across"
+PRINT"and back again."
+COLOUR colYELLOW TINT tintYELLOW
+PRINT'"Cursor left and right keys to move."'
+COLOUR colYELLOW+128 TINT tintYELLOW
+COLOUR colBLUE TINT tintBLUE
+PRINT"PRESS A KEY"
+SYS "OS_Byte",21,0
+key=GET
+SYS "OS_Byte",21,0
+OSCLI"FX 11 10":OSCLI"FX 12 10"
+
+RESTORE +0
+READ no_of_sls%
+sl_to_use%=RND(no_of_sls%)
+FOR loop%=1 TO sl_to_use%
+  READ grid$
+NEXT loop%
+
+pos%=1:light%=FALSE
+f%=0:IF insane% THEN bonus%=6000 ELSE bonus%=4000
+COLOUR colBLACK+128 TINT tintBLACK
+CLS
+PROCsearchlight_screen
+IF insane% THEN limit%=RND(50)+75 ELSE limit%=RND(100)+100
+t%=TIME:seccount%=TIME:msgdelay%=-1
+REPEAT
+  oldpos%=pos%
+  key=INKEY(0)
+  IF key=136 THEN pos%-=1
+  IF key=137 THEN pos%+=1
+  IF pos%<1 OR pos%>20 THEN pos%=oldpos%
+  IF oldpos%<>pos% THEN
+    IF light% THEN
+      COLOUR colYELLOW+128 TINT tintYELLOW
+      COLOUR colBLUE TINT tintBLUE
+    ELSE
+      COLOUR colBLACK+128 TINT tintBLACK
+      COLOUR colCYAN TINT tintCYAN
+    ENDIF
+    PRINT TAB(9+oldpos%,13);" "
+    PRINT TAB(9+pos%,13);"#"
+  ENDIF
+  IF MID$(grid$,pos%,1)=" " AND light%=TRUE THEN f%=3
+  IF f%<>3 THEN
+    IF pos%=20 AND f%=0 THEN
+      f%=1:PROCbeep
+      COLOUR colBLUE+128 TINT tintBLUE
+      COLOUR colWHITE TINT tintWHITE
+      PRINT TAB(6,16);" Got the key! Now get back! "
+      msgdelay%=TIME
+    ENDIF
+    IF pos%=1 AND f%=1 THEN f%=2:
+  ENDIF
+  IF TIME-t%>limit% THEN PROClight
+  IF msgdelay%>0 AND TIME-msgdelay%>250 THEN
+
+    IF light% THEN
+      COLOUR colYELLOW+128 TINT tintYELLOW
+    ELSE
+      COLOUR colBLACK+128 TINT tintBLACK
+    ENDIF
+
+    PRINT TAB(6,16);STRING$(28," ");
+
+    msgdelay%=-1
+  ENDIF
+  IF TIME-seccount%>100 THEN
+    secs%-=1
+    IF insane% THEN bonus%-=400 ELSE bonus%-=200
+    IF light% THEN
+      COLOUR colYELLOW+128 TINT tintYELLOW
+      COLOUR colRED TINT tintRED
+    ELSE
+      COLOUR colBLACK+128 TINT tintBLACK
+      COLOUR colWHITE TINT tintWHITE
+    ENDIF
+    PRINT TAB(30,1);"TIME = ";secs%;" "
+    SOUND 3,-15,100,1
+    seccount%=TIME
+    IF secs%=0 THEN f%=4
+  ENDIF
+UNTIL f%>1
+
+IF light% THEN
+  COLOUR colYELLOW+128 TINT tintYELLOW
+ELSE
+  COLOUR colBLACK+128 TINT tintBLACK
+ENDIF
+
+PRINT TAB(6,16);STRING$(28," ");
+COLOUR colBLUE+128 TINT tintBLUE
+COLOUR colWHITE TINT tintWHITE
+IF f%=2 THEN
+  PROCwinsound
+  PRINT TAB(6,16);" Key retrieved successfully "
+  PROCpause(250)
+  PRINT TAB(6,18);" BONUS = ";bonus%;" "
+ENDIF
+IF f%=3 THEN
+  PROClosesound
+  PRINT TAB(15,16);" Captured! "
+  gameover%=TRUE
+ENDIF
+IF f%=4 THEN
+  PROClosesound
+  PRINT TAB(15,16);" Time up! "
+  gameover%=TRUE
+ENDIF
+PROCpause(250)
+SYS "OS_Byte",21,0
+SYS "OS_Byte",11,32:SYS"OS_Byte",12,10
+SYS "OS_Byte",21,0
+ENDPROC
+
+DEF PROCsearchlight_screen
+IF light% THEN
+  COLOUR colYELLOW+128 TINT tintYELLOW
+  COLOUR colRED TINT tintRED
+ELSE
+  COLOUR colBLACK+128 TINT tintBLACK
+  COLOUR colWHITE TINT tintWHITE
+ENDIF
+CLS
+PRINT TAB(30,1);"TIME = ";secs%
+IF light% THEN
+  COLOUR colMAGENTA TINT tintMAGENTA
+ELSE
+  COLOUR colGREEN TINT tintGREEN
+ENDIF
+PRINT TAB(10,12);grid$
+IF f%=0 THEN
+  COLOUR colMAGENTA TINT tintMAGENTA
+  PRINT TAB(29,13);CHR$255
+ENDIF
+IF light% THEN
+  COLOUR colBLUE TINT tintBLUE
+ELSE
+  COLOUR colCYAN TINT tintCYAN
+ENDIF
+PRINT TAB(9+pos%,13);"#"
+ENDPROC
+
+DEF PROClight
+IF light%=FALSE THEN
+  light%=TRUE
+  PROCsearchlight_screen
+  COLOUR colRED+128 TINT tintRED
+  COLOUR colYELLOW TINT tintYELLOW
+  PRINT TAB(15,18);"  DANGER!  ";
+  SOUND 1,-15,100,10,0
+  SOUND 1,-15,125,10,50
+  t%=TIME:limit%=RND(100)+50
+ELSE
+  light%=FALSE
+  PROCsearchlight_screen
+  COLOUR colBLACK+128 TINT tintBLACK
+  PRINT TAB(15,18);"           ";
+  t%=TIME:IF insane% THEN limit%=RND(50)+75 ELSE limit%=RND(100)+100
+ENDIF
+ENDPROC
+
+DATA 7
+DATA"þþ þ þ þþ  þþ þ þ þþ"
+DATA"þþ  þ þþ  þþ þ  þþ þ"
+DATA"þ  þþ  þ þ  þ   þ  þ"
+DATA"þ  þ  þ   þ   þþ   þ"
+DATA"þ   þ   þ þ   þ    þ"
+DATA"þ    þ  þ    þ   þ þ"
+DATA"þ   þ     þ    þ   þ"
+
+DEF PROChilo
+LOCAL number1%,goes%,number2%,guess%,hilo$,loop%,loop2%
+CLS
+IF insane% THEN goes%=7 ELSE goes%=5
+COLOUR colRED+128 TINT tintRED
+COLOUR colYELLOW TINT tintYELLOW
+PRINT TAB(0,0);"HI-LO"
+COLOUR colBLACK+128 TINT tintBLACK
+COLOUR colWHITE TINT tintWHITE
+PRINT'"Your life is at stake!"
+PRINT"Gamble ";
+COLOUR colYELLOW TINT tintYELLOW
+PRINT"HIGHER ";
+COLOUR colWHITE TINT tintWHITE
+PRINT"or ";
+COLOUR colYELLOW TINT tintYELLOW
+PRINT"LOWER ";
+COLOUR colWHITE TINT tintWHITE
+PRINT"successfully ";
+COLOUR colYELLOW TINT tintYELLOW
+PRINT;goes%
+COLOUR colWHITE TINT tintWHITE
+PRINT"times to win!"
+loop%=1:bonus%=0:number1%=0
+WHILE loop%<=goes% AND NOT gameover%
+  FOR loop2%=1 TO 50
+    COLOUR colGREEN TINT tintGREEN:REM flash cyan/red
+    number2%=RND(10)
+    PRINT TAB(loop%*5,11);STRING$(2," ")
+    PRINT TAB(loop%*5,11);number2%
+    SOUND 1,-15,(number2%*10)+50,5
+    PROCpause(5)
+  NEXT loop2%
+  IF number1%=0 THEN
+    PROCbeep
+  ELSE
+    IF key$="H" OR key$="h" THEN
+      IF number2%>number1% THEN
+        bonus%+=200
+        IF loop%<goes% THEN
+          COLOUR colGREEN TINT tintGREEN
+          PRINT TAB(3,16);"Lucky this time!"
+          PROCbeep
+        ENDIF
+      ELSE
+        COLOUR colRED TINT tintRED
+        PRINT TAB(3,16);"You're dead..."
+        gameover%=TRUE
+        PROClosesound
+      ENDIF
+    ELSE
+      IF number2%<number1% THEN
+        IF loop%<goes% THEN
+          COLOUR colGREEN TINT tintGREEN
+          PRINT TAB(3,16);"Lucky this time!"
+          PROCbeep
+        ENDIF
+        bonus%+=200
+      ELSE
+        COLOUR colRED TINT tintRED
+        PRINT TAB(3,16);"You're dead..."
+        gameover%=TRUE
+        PROClosesound
+      ENDIF
+    ENDIF
+    IF loop%<goes% OR gameover% THEN PROCpause(250)
+  ENDIF
+    PRINT TAB(3,16);STRING$(35," ")
+    PRINT TAB(3,14);STRING$(35," ")
+  IF loop%<goes% AND NOT gameover% THEN
+    COLOUR colMAGENTA TINT tintMAGENTA
+    PRINT TAB(3,14);"Higher or Lower? (H/L) : ";
+    ON
+    SYS "OS_Byte",21,0
+    REPEAT
+      key$=GET$
+    UNTIL INSTR("HhLl",key$)>0
+    OFF
+    COLOUR colYELLOW TINT tintYELLOW
+    IF key$="H" OR key$="h" THEN PRINT"HIGHER" ELSE PRINT"LOWER"
+  ENDIF
+  number1%=number2%
+  loop%+=1
+ENDWHILE
+IF gameover%=FALSE THEN
+  COLOUR colYELLOW TINT tintYELLOW
+  REM COLOUR 12
+  PRINT TAB(3,15);"All right then, you can live..."
+  PROCwinsound
+  bonus%+=200:IF insane% THEN bonus%+=200
+  PROCpause(250):COLOUR 7
+  PRINT TAB(3,17);"BONUS = "+RIGHT$(STR$(bonus%+10000),4)
+  score%+=bonus%
+ENDIF
+ENDPROC
+
+DEF PROCdeath
+LOCAL length%,widenoutpoint%,end%,w%,left%(),c%,pos%,oldpos%
+CLS:OFF
+IF testing% THEN VDU 19,0,24,255,255,255
+length%=1006:REM should be at least 100, else won't work correctly
+end%=length%+80
+widenoutpoint%=end%-60:c%=0
+
+
+COLOUR colRED+128 TINT tintRED
+COLOUR colYELLOW TINT tintYELLOW
+PRINT'"DEATH RIDE"
+COLOUR colBLACK+128 TINT tintBLACK
+COLOUR colWHITE TINT tintWHITE
+PRINT''"Ride through Death Valley, but don't"'"hit the walls!"
+COLOUR colYELLOW TINT tintYELLOW
+PRINT'"Cursor left and right keys to move"'
+COLOUR colYELLOW+128 TINT tintYELLOW
+COLOUR colBLUE TINT tintBLUE
+PRINT"PRESS A KEY"
+SYS "OS_Byte",21,0
+key=GET
+COLOUR colBLACK+128 TINT tintBLACK
+CLS
+COLOUR colYELLOW TINT tintYELLOW
+DIM left%(31)
+IF insane% THEN w%=7 ELSE w%=8
+IF insane% THEN s%=3 ELSE s%=4
+left%()=(20-w%/2):pos%=20:oldpos%=20
+bonus%=0
+FOR loop%=0 TO 31
+  PRINT TAB(left%(loop%),loop%);"|";TAB(left%(loop%)+w%,loop%);"|";
+NEXT
+OSCLI"FX 11 10":OSCLI"FX 12 10"
+FOR loop%=1 TO end%
+  t%=TIME
+  IF loop%>30 AND loop%<widenoutpoint% THEN
+    IF insane% THEN bonus%+=10 ELSE bonus%+=5
+  ENDIF
+  key=INKEY(0)
+  IF key=136 THEN pos%-=1
+  IF key=137 THEN pos%+=1
+  FOR lloop%=0 TO 30
+    left%(lloop%)=left%(lloop%+1)
+  NEXT lloop%
+  IF loop%<widenoutpoint% THEN
+    left%(31)=left%(30)+RND(3)-2
+  ELSE
+    IF left%(31)=0 OR left%(31)+w%=39 THEN
+      w%+=1
+    ELSE
+      left%(31)=left%(30)-1
+      w%+=2
+    ENDIF
+    IF w%>39 THEN w%=39
+  ENDIF
+  IF left%(31)<0 THEN left%(31)=0
+  IF left%(31)+w%>39 THEN left%(31)=39-w%
+  IF c%=1 THEN
+    SOUND 1,-15,left%(31)*3+66,10
+    c%=0
+  ELSE
+    c%+=1
+  ENDIF
+  VDU 23,7,0,3,0|
+  COLOUR colYELLOW TINT tintYELLOW
+  PRINT TAB(left%(31),31);"|";TAB(left%(31)+w%,31);"|";
+  COLOUR colGREEN TINT tintGREEN
+  PRINT TAB(oldpos%,1);" "
+  PRINT TAB(pos%,2);"#";
+  IF pos%<=left%(2) OR pos%>=left%(2)+w% THEN
+    gameover%=TRUE
+    loop%=end%
+  ENDIF
+  oldpos%=pos%
+  REPEAT:UNTIL TIME-t%>s%
+NEXT loop%
+COLOUR colMAGENTA TINT tintMAGENTA:REM flash
+IF gameover%=FALSE THEN
+  PRINT TAB(14,5);"You survived!"
+  IF insane% THEN bonus%+=1000 ELSE bonus%+=500
+  PROCwinsound
+  PROCpause(250)
+  score%+=bonus%
+  PRINT TAB(14,7);"BONUS = "+RIGHT$("0000"+STR$ bonus%,4)
+ELSE
+  PRINT TAB(17,5);"CRASH!"
+  PROClosesound
+ENDIF
+PROCpause(250)
+SYS "OS_Byte",21,0
+OSCLI"FX 11 32":OSCLI"FX 12 10"
+
+ENDPROC
+
+DEF PROCmultiply(name$,char$)
+LOCAL locationarray%(),t%,x%,y%,ex%,ey%,timeup%,w%,lloop%
+DIM locationarray%(39,30)
+locationarray%()=FALSE
+CLS:
+COLOUR colRED+128 TINT tintRED
+COLOUR colYELLOW TINT tintYELLOW
+PRINT TAB(0,0);name$+" INFESTATION"
+COLOUR colBLACK+128 TINT tintBLACK
+COLOUR colWHITE TINT tintWHITE
+PRINT''"Get to the top-left corner of the screen"
+PRINT"Avoid the deadly ";name$
+COLOUR colMAGENTA TINT tintMAGENTA
+PRINT'"You have 15 seconds!"
+COLOUR colCYAN TINT tintCYAN
+PRINT"Cursor keys to move"
+COLOUR colYELLOW+128 TINT tintYELLOW
+COLOUR colBLUE TINT tintBLUE
+PRINT'"PRESS A KEY"
+SYS "OS_Byte",21,0
+key=GET
+x%=39:y%=31
+COLOUR colBLACK+128 TINT tintBLACK:CLS
+COLOUR colBLUE+128 TINT tintBLUE:PRINT TAB(0,0);STRING$(40," ");
+VDU 5
+bonus%=1500:mins%=0:secs%=15
+GCOL colYELLOW TINT tintYELLOW:REM GCOL 11
+PRINT TAB(0,1);"þ"
+t%=TIME
+GCOL colWHITE TINT tintWHITE:PRINT TAB(39,31);"#";
+timeup%=FALSE
+IF insane% THEN s%=2 ELSE s%=1
+REM fill array with a few random ones
+FOR lloop%=1 TO 20
+    REPEAT
+      fff%=TRUE
+      ex%=RND(40)-1:ey%=RND(31)-1
+      IF ex%=x% AND ey%=y%-3 THEN fff%=FALSE
+      IF ex%=0 AND ey%=0 THEN fff%=FALSE
+    UNTIL fff%=TRUE
+    REM needs to be random
+    PROCrandomgcol
+    PRINT TAB(ex%,ey%+1);char$;
+    locationarray%(ex%,ey%)=TRUE
+NEXT lloop%
+
+REPEAT
+  w%=TIME
+  bonus%=1500-(TIME-t%)
+  secs%=(1599-(TIME-t%))/100
+  VDU 4
+  COLOUR colBLUE+128 TINT tintBLUE:COLOUR colWHITE TINT tintWHITE
+  PRINT TAB(36,0);secs%;" ";
+  VDU 5
+  oldx%=x%:oldy%=y%
+  IF INKEY-26:x%-=1
+  IF INKEY-122:x%+=1
+  IF INKEY-42:y%+=1
+  IF INKEY-58:y%-=1
+  IF x%<0 THEN x%=0
+  IF x%>39 THEN x%=39
+  IF y%<1 THEN y%=1
+  IF y%>31 THEN y%=31
+  IF locationarray%(x%,y%-1) THEN gameover%=TRUE
+  IF oldx%<>x% OR oldy%<>y% THEN
+    GCOL colBLACK TINT tintBLACK
+    PRINT TAB(oldx%,oldy%);"#";
+    IF gameover% THEN
+      GCOL 3,colWHITE TINT tintWHITE
+    ELSE
+      GCOL colWHITE TINT tintWHITE
+    ENDIF
+    PRINT TAB(x%,y%);"#";
+  ENDIF
+  FOR lloop%=1 TO s%
+    REPEAT
+      fff%=TRUE
+      ex%=RND(40)-1:ey%=RND(31)-1
+      IF ex%=x% AND ey%=y%-3 THEN fff%=FALSE
+      IF ex%=0 AND ey%=0 THEN fff%=FALSE
+    UNTIL fff%=TRUE
+    PROCrandomgcol
+    PRINT TAB(ex%,ey%+1);char$;
+    locationarray%(ex%,ey%)=TRUE
+  NEXT lloop%
+  SOUND 3,-7,100,2
+  REPEAT:UNTIL TIME-w%>5
+  IF TIME-t%>1500 THEN gameover%=TRUE:timeup%=TRUE
+UNTIL gameover% OR (x%=0 AND y%=1)
+VDU4:OFF
+IF x%=0 AND y%=1 THEN
+  REM bonus%=1500-(TIME-t%)
+  PROCwinsound
+  COLOUR colYELLOW+128 TINT tintYELLOW:COLOUR colBLUE TINT tintBLUE
+  PRINT TAB(11,15);"  Reached safety  "
+  PROCpause(250)
+  PRINT TAB(13,16);"  BONUS = ";RIGHT$("0000"+STR$ bonus%,4);"  "
+  score%+=bonus%
+ENDIF
+IF gameover% THEN
+  PROClosesound
+  IF timeup%=FALSE THEN
+    COLOUR colYELLOW+128 TINT tintYELLOW:COLOUR colBLUE TINT tintBLUE
+    string$="  Poisoned by "+name$+"  "
+    PRINT TAB(20-LEN(string$)/2,15);string$
+  ELSE
+    COLOUR colYELLOW+128 TINT tintYELLOW:COLOUR colBLUE TINT tintBLUE
+    PRINT TAB(14,15);"  TIME UP!  "
+  ENDIF
+  PRINT TAB(11,16);"  Prepare to die  "
+ENDIF
+SYS "OS_Byte",21,0
+PROCpause(250)
+VDU4:OFF
+ENDPROC
+
+DEF PROCrandomgcol
+LOCAL r%
+r%=RND(6)
+CASE r% OF
+  WHEN 1:GCOL colRED TINT tintRED
+  WHEN 2:GCOL colGREEN TINT tintGREEN
+  WHEN 3:GCOL colYELLOW TINT tintYELLOW
+  WHEN 4:GCOL colBLUE TINT tintBLUE
+  WHEN 5:GCOL colMAGENTA TINT tintMAGENTA
+  WHEN 6:GCOL colCYAN TINT tintCYAN
+ENDCASE
+ENDPROC
+
+DEF PROCbottomless
+LOCAL loop%
+COLOUR colBLACK+128 TINT tintBLACK
+COLOUR colWHITE TINT tintWHITE:REM flash
+FOR loop%=py%+10 TO 31
+  IF loop%>py%+10:PRINT TAB(px%,loop%-1);" "
+  PRINT TAB(px%,loop%);"#";
+  SOUND 1,-15,200-(loop%*5),5
+  PROCpause(5)
+NEXT loop%
+PRINT TAB(px%,31);" ";
+REPEAT
+ IF insane% THEN
+  IF px%<2 THEN
+    tx%=0
+  ELSE
+    tx%=RND(px%)-1
+  ENDIF
+  ty%=RND(9)
+ ELSE
+  tx%=RND(30)-1:ty%=RND(9)
+ ENDIF
+UNTIL MID$(maze$(ty%),tx%+1,1)="þ"
+px%=tx%:py%=ty%
+COLOUR colYELLOW+128 TINT tintYELLOW
+COLOUR colBLUE TINT tintBLUE
+PRINT TAB(0,14);STRING$(40," ");
+PRINT TAB(0,15);"         You fall into a vortex         ";
+PRINT TAB(0,16);"       and emerge somewhere else!       ";
+PRINT TAB(0,17);STRING$(40," ");
+PROCpause(250)
+PROCplotmazenew(FALSE)
+FOR loop%=4 TO py%+10
+  IF loop%>4 THEN PRINT TAB(px%,loop%-1);" "
+  PRINT TAB(px%,loop%);"#"
+  PROCpause(5)
+NEXT loop%
+ENDPROC
+
+DEF PROCrockfall
+LOCAL string$(),px%,t%,key,bonus,t%,w%,col%
+DIM string$(31)
+string$()=STRING$(40," ")
+COLOUR colBLACK+128 TINT tintBLACK
+CLS
+COLOUR colRED+128 TINT tintRED
+COLOUR colYELLOW TINT tintYELLOW
+PRINT TAB(0,0);"ROCKFALL!"
+COLOUR colBLACK+128 TINT tintBLACK
+COLOUR colWHITE TINT tintWHITE
+PRINT'"Avoid the falling rocks or die!"
+COLOUR colYELLOW TINT tintYELLOW
+PRINT'"Cursor left and right to move"
+PRINT
+COLOUR colYELLOW+128 TINT tintYELLOW
+COLOUR colBLUE TINT tintBLUE
+PRINT"PRESS A KEY"
+COLOUR colBLACK+128 TINT tintBLACK
+SYS "OS_Byte",21,0
+key=GET
+OSCLI"FX 11 10":OSCLI"FX 12 10"
+CLS
+REM VDU 28,10,37,49,9:REMVDU 28,0,31,39,3
+COLOUR colWHITE TINT tintWHITE
+PRINT TAB(px%,31);"#";
+px%=20
+col%=0
+gameover%=FALSE
+bonus%=0
+w%=TIME
+
+IF insane% THEN s%=6 ELSE s%=10
+length%=3000
+end%=length%+(s%*35)
+REPEAT
+  bonus%+=5
+  t%=TIME
+  REM VDU 5:PROCnewplotscorenobg(FALSE,TRUE,FALSE):VDU4:OFF
+  col%+=1:IF col%>35 THEN col%=0
+  FOR loop%=0 TO 30
+    string$(loop%)=string$(loop%+1)
+  NEXT loop%
+  string$(31)=STRING$(40," ")
+  IF TIME-w%<length% THEN
+    FOR loop%=1 TO 4
+      MID$(string$(31),RND(40),1)="o"
+    NEXT loop%
+  ENDIF
+  WAIT:VDU 23,7,0,2,1|
+  PROCcolour(col%/6+1)
+  SOUND 1,-15,200-col%*3,5
+  PRINT TAB(0,0);string$(31);
+  key=INKEY(0)
+  IF key=136 THEN px%-=1
+  IF key=137 THEN px%+=1
+  IF px%<0 THEN px%=0
+  IF px%>39 THEN px%=39
+  IF MID$(string$(0),px%+1,1)="o" THEN
+    gameover%=TRUE
+  ELSE
+    COLOUR colWHITE TINT tintWHITE
+    PRINT TAB(px%,31);"#";
+  ENDIF
+  REPEAT:UNTIL TIME-t%>s%
+UNTIL TIME-w%>end% OR gameover%=TRUE
+IF gameover%=TRUE THEN
+  COLOUR colYELLOW+128 TINT tintYELLOW
+  COLOUR colBLUE TINT tintBLUE
+  PRINT TAB(15,15);"  CRASH!  "
+  VDU 5:GCOL colWHITE TINT tintWHITE
+  PRINT TAB(px%,31);"_";:VDU 4:OFF
+  PROClosesound
+ELSE
+  COLOUR colYELLOW+128 TINT tintYELLOW
+  COLOUR colBLUE TINT tintBLUE
+  PRINT TAB(12,15);"  You're safe!  "
+  PROCwinsound
+  bonus%+=500:IF insane% THEN bonus%+=500
+  REM VDU 5:PROCnewplotscorenobg(FALSE,TRUE,FALSE)
+  PROCpause(250)
+  PRINT TAB(12,17);"  BONUS = ";RIGHT$("0000"+STR$ bonus%,4);"  "
+  score%+=bonus%
+ENDIF
+PROCpause(250)
+SYS "OS_Byte",21,0
+OSCLI"FX 11 32":OSCLI"FX 12 10"
+REM VDU 28,10,37,49,6
+ENDPROC
+
+DEF PROCcolour(c%)
+CASE c% OF
+  WHEN 0:COLOUR colBLACK TINT tintBLACK
+  WHEN 1:COLOUR colRED TINT tintRED
+  WHEN 2:COLOUR colGREEN TINT tintGREEN
+  WHEN 3:COLOUR colYELLOW TINT tintYELLOW
+  WHEN 4:COLOUR colBLUE TINT tintBLUE
+  WHEN 5:COLOUR colMAGENTA TINT tintMAGENTA
+  WHEN 6:COLOUR colCYAN TINT tintCYAN
+  WHEN 7:COLOUR colWHITE TINT tintWHITE
+ENDCASE
+ENDPROC
+
+DEF PROCpigeonhole
+LOCAL loop%,key,n%,d%,g%,c%,won%,p$,dealtwith%,n%()
+COLOUR colBLACK+128 TINT tintBLACK:CLS
+
+IF insane%=TRUE THEN d%=3 ELSE d%=5
+g%=0:c%=0
+COLOUR colRED+128 TINT tintRED
+COLOUR colYELLOW TINT tintYELLOW
+PRINT TAB(0,0);"PIGEON HOLE"
+COLOUR colBLACK+128 TINT tintBLACK
+COLOUR colWHITE TINT tintWHITE
+PRINT'"You will be given ten random numbers"
+PRINT"in the range 1 to 99."
+PRINT'"Put them into appropriate pigeon holes"
+PRINT"Smallest in 0, largest in 9"
+COLOUR colYELLOW TINT tintYELLOW
+PRINT'"Get the numbers in the wrong order and"
+PRINT"the merciless Percy Pigeon will peck you";
+PRINT"to death!"
+COLOUR colCYAN TINT tintCYAN
+PRINT'"You can discard numbers that don't fit"
+PRINT"by pressing D. You can only discard ";
+COLOUR colGREEN TINT tintGREEN
+PRINT ;d%
+COLOUR colCYAN TINT tintCYAN
+PRINT"numbers."'
+SYS "OS_Byte",21,0
+COLOUR colYELLOW+128 TINT tintYELLOW
+COLOUR colBLUE TINT tintBLUE
+PRINT"PRESS A KEY"
+key=GET
+DIM n%(9)
+COLOUR colBLACK+128 TINT tintBLACK
+CLS
+
+
+PROCbeep
+
+FOR loop%=0 TO 9
+  COLOUR colCYAN TINT tintCYAN
+  PRINT TAB(3,loop%*2+2);"+-+--+"
+  PRINT TAB(3,loop%*2+3);"| |  |"
+  COLOUR colYELLOW TINT tintYELLOW
+  PRINT TAB(4,loop%*2+3);loop%
+  n%(loop%)=0
+NEXT loop%
+COLOUR colCYAN TINT tintCYAN
+PRINT TAB(3,22);"+-+--+"
+won%=FALSE:gameover%=FALSE
+REPEAT
+  n%=RND(99)
+  REPEAT
+    COLOUR colGREEN TINT tintGREEN
+    PRINT TAB(12,5);d%-g%;" discards left"
+    COLOUR colYELLOW TINT tintYELLOW
+    PRINT TAB(12,10);"Your number is : ";
+    COLOUR colGREEN TINT tintGREEN
+    PRINT;n%;"    "
+    COLOUR colMAGENTA TINT tintMAGENTA
+    PRINT TAB(12,12);"Where will you put it?    ";
+    COLOUR colWHITE TINT tintWHITE
+    PRINT TAB(12,19);"Type ";:COLOUR colYELLOW TINT tintYELLOW:PRINT"0-9"
+    PRINT TAB(12,20);"D";:COLOUR colWHITE TINT tintWHITE:PRINT" to discard"
+    COLOUR colYELLOW TINT tintYELLOW
+    PRINT TAB(12,21);"G";:COLOUR colWHITE TINT tintWHITE:PRINT" to give up"
+    REPEAT
+      p$=GET$
+    UNTIL (p$>="0" AND p$<="9") OR INSTR("DdGg",p$)>0
+    PRINT TAB(35,12);p$
+    dealtwith%=FALSE
+    IF (p$="D" OR p$="d") AND g%>=d% THEN
+      COLOUR colRED TINT tintRED
+      PRINT TAB(12,14);"You can't! Ha ha ha!"
+      PROCpause(100)
+      PRINT TAB(12,14);"                    "
+    ENDIF
+    IF (p$="D" OR p$="d") AND g%<d% THEN
+      g%=g%+1:dealtwith%=TRUE:bonus%-=50
+
+    ENDIF
+    IF p$>="0" AND p$<="9" THEN
+      p%=VAL(p$)
+      IF n%(p%)>0 THEN
+        COLOUR colRED TINT tintRED
+        PRINT TAB(12,14);"Already Full"
+        PROCpause(100)
+        PRINT TAB(12,14);"            "
+      ENDIF
+      IF n%(p%)=0 THEN
+        n%(p%)=n%
+        COLOUR colWHITE TINT tintWHITE
+        PRINT TAB(8-LEN(STR$(n%(p%))),p%*2+3);n%(p%)
+        FOR loop%=p% TO 9
+          IF n%(loop%)<n% AND n%(loop%)<>0 THEN gameover%=TRUE
+        NEXT loop%
+        FOR loop%=0 TO p%
+          IF n%(loop%)>n% AND n%(loop%)<>0 THEN gameover%=TRUE
+        NEXT loop%
+        dealtwith%=TRUE
+        IF gameover%=FALSE THEN
+          bonus%+=100
+          IF insane% THEN bonus%+=100
+        ELSE
+          COLOUR colRED+128 TINT tintRED:COLOUR colWHITE TINT tintWHITE
+          PRINT TAB(8-LEN(STR$(n%(p%))),p%*2+3);n%(p%)
+        ENDIF
+      ENDIF
+
+      IF gameover%=FALSE AND dealtwith%=TRUE THEN
+        c%+=1:IF c%>=10 THEN won%=TRUE
+        COLOUR 7:PRINT TAB(0,0);c%
+      ENDIF
+    ENDIF
+    IF p$="G" OR p$="g" THEN gameover%=TRUE:dealtwith%=TRUE
+    PROCpause(5)
+  UNTIL dealtwith%
+UNTIL won% OR gameover%
+COLOUR colBLACK+128 TINT tintBLACK
+PRINT TAB(12,19);"                     "
+PRINT TAB(12,20);"                     "
+PRINT TAB(12,21);"                     "
+IF won% THEN
+  COLOUR colYELLOW+128 TINT tintYELLOW
+  COLOUR colBLUE TINT tintBLUE
+  PRINT TAB(12,19);"  You win... this time!  "
+  PROCwinsound
+  bonus%+=1000:IF insane% THEN bonus%+=1000
+  REM VDU5:PROCnewplotscorenobg(TRUE,TRUE,FALSE):VDU 4:OFF
+  PROCpause(250)
+  COLOUR colWHITE+128 TINT tintWHITE:COLOUR colRED TINT tintRED
+  PRINT TAB(15,21);"   BONUS = "+RIGHT$(STR$(bonus%+10000),4)+"   "
+  score%+=bonus%
+  PROCpause(250)
+ENDIF
+IF gameover% THEN
+  COLOUR colYELLOW+128 TINT tintYELLOW:COLOUR colBLUE TINT tintBLUE
+  PRINT TAB(12,19);"  You lose..peck-peck-peck  "
+
+  PROClosesound
+  PROCpause(250)
+ENDIF
+ENDPROC
+
+REM---------------------------------------------------------------
+REM REMEMBER THAT TUNE?
+REM---------------------------------------------------------------
+DEF PROCsequence
+LOCAL goes%,dots%,loop%,key%,widgetarray%(),t%
+DIM widgetarray%(10)
+COLOUR colBLACK+128 TINT tintBLACK:CLS
+IF insane% THEN goes%=6 ELSE goes%=4
+COLOUR colRED+128 TINT tintRED
+COLOUR colYELLOW TINT tintYELLOW
+PRINT TAB(0,0);"REMEMBER THAT TUNE?"
+COLOUR colGREEN TINT tintGREEN
+COLOUR colBLACK+128 TINT tintBLACK
+PRINT'"Remember the sequence and then play"
+PRINT"it back using the keys 1-5. Get it wrong"
+PRINT "and you die! You must get it right ";
+COLOUR colYELLOW TINT tintYELLOW
+PRINT ;goes%
+COLOUR colGREEN TINT tintGREEN
+PRINT"times to win."
+COLOUR colWHITE TINT tintWHITE
+
+PRINT'"PRESS A KEY"
+FOR loop%=1 TO 5
+  PROCsequence_drawshape(loop%,FALSE)
+NEXT
+*FX 15 1
+key%=GET
+VDU 11:PRINT"           "
+bonus%=0
+REM VDU5:PROCnewplotscorewithbg(TRUE,TRUE,FALSE):VDU 4:OFF
+PROCpause(100)
+dots%=2
+REPEAT
+  dots%+=1
+  gameover%=FALSE
+  REM fill array with bits
+  FOR loop%=1 TO dots%
+    widgetarray%(loop%)=RND(5)
+  NEXT loop%
+  IF testing% THEN PRINT TAB(0,31);STRING$(20," ");TAB(0,31);
+  FOR loop%=1 TO dots%
+    PROCsequence_drawshape(widgetarray%(loop%),1)
+    IF testing% THEN
+      PRINT ;widgetarray%(loop%);
+      IF loop%<dots% THEN PRINT", ";
+    ENDIF
+    PROCsequence_makenoise(widgetarray%(loop%))
+    PROCpause(50)
+    PROCsequence_drawshape(widgetarray%(loop%),0)
+    PROCpause(10)
+  NEXT loop%
+  FOR loop%=1 TO dots%
+    *FX 15 1
+    REPEAT:key=GET-48:UNTIL key>=1 AND key<=5
+    PROCsequence_drawshape(key,1)
+    PROCsequence_makenoise(key)
+    IF key<>widgetarray%(loop%) THEN
+      gameover%=TRUE:loop%=dots%
+    ELSE
+      bonus%+=50
+      REM VDU5:PROCnewplotscorenobg(TRUE,TRUE,FALSE):VDU4:OFF
+      PROCpause(50)
+      PROCsequence_drawshape(key,0)
+    ENDIF
+  NEXT loop%
+  IF gameover%=FALSE AND dots%<goes%+2 THEN PROCpause(200)
+UNTIL gameover% OR dots%=goes%+2
+COLOUR colYELLOW+128 TINT tintYELLOW
+COLOUR colBLUE TINT tintBLUE
+PRINT TAB(0,2);STRING$(200," ")
+REM PRINT TAB(0,4);STRING$(120," ")
+IF gameover% THEN
+  PROClosesound
+  PRINT TAB(9,3);"WHOOPS! You're dead..."
+  PRINT TAB(10-dots%,5);"Correct sequence was ";
+  COLOUR colRED TINT tintRED
+  FOR loop%=1 TO dots%
+    PRINT ;widgetarray%(loop%);
+    IF loop%<dots% THEN PRINT",";
+  NEXT loop%
+  PROCpause(250)
+ELSE
+  bonus%+=100:IF insane% THEN bonus%+=150
+  REM VDU5:PROCnewplotscorenobg(TRUE,TRUE,FALSE):VDU4:OFF
+  PROCwinsound
+  t%=TIME
+  REPEAT
+    FOR loop2%=1 TO 5
+      PROCsequence_drawshape(loop2%,TRUE)
+      PROCpause(5)
+      PROCsequence_drawshape(loop2%,FALSE)
+    NEXT loop2%
+  UNTIL TIME-t%>=250
+  REM VDU5:PROCbonusboost(FALSE):VDU4:OFF
+ENDIF
+
+ENDPROC
+
+REM accessory to the above
+DEF PROCsequence_makenoise(no%)
+SOUND 1,-15,90+(no%*20),10
+ENDPROC
+
+REM and another
+DEF PROCsequence_drawshape(no%,hilight%)
+VDU 5
+CASE no% OF
+  WHEN 1:REM circle
+    IF hilight% THEN
+      GCOL colWHITE TINT colWHITE
+    ELSE
+      GCOL colRED TINT colRED
+    ENDIF
+    CIRCLE FILL 125,262,64
+    MOVE 48,323:PRINT"1"
+  WHEN 2:REM triangle
+    IF hilight% THEN
+      GCOL colWHITE TINT colWHITE
+    ELSE
+      GCOL colGREEN TINT colGREEN
+    ENDIF
+    MOVE 256,192:MOVE 384,192:PLOT 85,320,340
+    MOVE 288,336:PRINT"2"
+  WHEN 3:REM square
+    IF hilight% THEN
+      GCOL colWHITE TINT colWHITE
+    ELSE
+      GCOL colYELLOW TINT colYELLOW
+    ENDIF
+    RECTANGLE FILL 465,198,125
+    MOVE 433,311:PRINT"3"
+  WHEN 4:REM pentagon (draw three triangles)
+    IF hilight% THEN
+      GCOL colWHITE TINT tintWHITE
+    ELSE
+      GCOL colMAGENTA TINT tintMAGENTA
+    ENDIF
+    MOVE 120,144
+    MOVE 64,96
+    PLOT 85,176,96
+    PLOT 85,80,16
+    PLOT 85,160,16
+    MOVE 64,144:PRINT"4"
+  WHEN 5:REM hexagon (draw four triangles)
+    IF hilight% THEN
+      GCOL colWHITE TINT tintWHITE
+    ELSE
+      GCOL colCYAN TINT tintCYAN
+    ENDIF
+    MOVE 464,80
+    MOVE 496,144
+    PLOT 85,496,16
+    PLOT 85,560,144
+    PLOT 85,560,16
+    PLOT 85,592,80
+    MOVE 464,144:PRINT"5"
+ENDCASE
+VDU 4:OFF
+ENDPROC
+
+REM---------------------------------------------------------------
+REM INVISIBLE MAZE
+REM---------------------------------------------------------------
+
+DEF PROCinvisiblemaze
+LOCAL width%,height%,maze%(),x%,y%,walls%,ox%,oy%,bonusmultiplier%
+LOCAL px%,py%,oldpx%,oldpy%,w%,mins%,secs%,centisecs%,t%
+LOCAL gMult%
+IF MODE=13 THEN gMult%=64 ELSE gmult%=32
+COLOUR colRED+128 TINT tintRED
+COLOUR colYELLOW TINT tintYELLOW
+PRINT"INVISIBLE MAZE"
+
+COLOUR colBLACK+128 TINT colBLACK
+COLOUR colMAGENTA TINT tintMAGENTA
+PRINT'"Get to the exit within 60 seconds"
+PRINT"or die! Just one problem... you can't"
+PRINT"see the walls!"
+
+COLOUR colCYAN TINT tintCYAN
+PRINT'"ENJOY YOUR DEATH!"
+COLOUR colWHITE TINT tintWHITE
+PRINT'"Cursor keys to move"
+REM **** INITIALISE MAZE ****
+COLOUR colYELLOW TINT tintYELLOW
+PRINT'"Initialising maze"
+IF insane% THEN
+  width%=12:height%=11:bonusmultiplier%=100
+ELSE
+  width%=10:height%=10:bonusmultiplier%=50
+ENDIF
+DIM maze%(width%,height%,8)
+FOR x%=0 TO width%
+  FOR y%=0 TO height%
+    FOR walls%=0 TO 3
+      maze%(x%,y%,walls%)=TRUE:REM initially all walls are filled in.
+      maze%(x%,y%,walls%+4)=FALSE:REM no maze borders (filled in below)
+    NEXT
+    maze%(x%,y%,8)=FALSE:REM not visited
+  NEXT
+NEXT
+
+REM **** Fill in maze borders
+REM North border
+FOR x%=0 TO width%
+  maze%(x%,0,4)=TRUE:REM set north border flag
+  maze%(x%,height%,6)=TRUE:REM set south border flag
+NEXT
+FOR y%=0 TO height%
+  maze%(width%,y%,5)=TRUE:REM set east border flag
+  maze%(0,y%,7)=TRUE:REM set west border flag
+NEXT y%
+REM **** END OF INITIALISE SECTION ****
+REM **** START GENERATION ****
+COLOUR colBLUE TINT tintBLUE:REM flashing blue/yellow
+PRINT TAB(0,12);"Generating maze:   %"
+visited%=0:PROCmaze(0,0)
+REM **** END GENERATION ****
+
+COLOUR colGREEN TINT tintGREEN
+PRINT TAB(0,10);"PRESS A KEY TO START"
+PRINT TAB(0,12);"                    "
+SYS"OS_Byte",15,0
+key=GET
+
+REM set up initial display
+CLS:VDU 5
+secs%=60:fractionsecs%=10:bonus%=(mins%*60+secs%)*bonusmultiplier%
+px%=width%:py%=height%
+REM PROCnewplotscorewithbg(TRUE,TRUE,TRUE)
+IF MODE=28 THEN
+  ox%=320-(32*(width%+1))/2:oy%=264+(32*(height%+1))/2
+ELSE
+  ox%=640-(64*(width%+1))/2:oy%=528+(32*(height%+1))/2
+ENDIF
+
+GCOL colCYAN TINT tintCYAN
+RECTANGLE ox%,oy%-(height%+1)*32,(width%+1)*32-2,(height%+1)*32
+GCOL colWHITE TINT tintWHITE
+MOVE ox%+px%*32+8,oy%-py%*32-9:PRINT"#"
+GCOL colYELLOW TINT tintYELLOW:REM flashing yellow/blue
+MOVE ox%-96,oy%-9:PRINT"EXIT <"
+GCOL colWHITE TINT colWHITE
+MOVE ox%+(width%*32)-32,oy%+40:PRINT"T=60";
+CIRCLE FILL 608,864,50
+REM start of game loop
+w%=TIME:t%=TIME
+REPEAT
+
+  IF TIME-w%>7 THEN
+    w%=TIME
+    oldpx%=px%:oldpy%=py%
+    REM move west
+    IF INKEY-26 THEN
+     IF maze%(px%,py%,3)=FALSE THEN
+
+      IF px%>0 THEN
+        px%-=1
+      ENDIF
+     ELSE
+       REM there's a wall there, so draw it (and the corresponding
+       REM wall on the other side) in.
+       GCOL colCYAN TINT tintCYAN
+       PROCbeep
+       LINE ox%+px%*32,oy%-py%*32,ox%+px%*32,oy%-py%*32-31
+       IF px%>0 THEN LINE ox%+(px%-1)*32+31,oy%-py%*32,ox%+(px%-1)*32+31,oy%-py%*32-31
+
+     ENDIF
+    ENDIF
+    REM move east
+    IF INKEY-122 THEN
+     IF maze%(px%,py%,1)=FALSE THEN
+
+      IF px%<width% THEN
+        px%+=1
+      ENDIF
+     ELSE
+       REM there's a wall there, so draw it (and the corresponding
+       REM wall on the other side) in.
+       GCOL colCYAN TINT tintCYAN
+       PROCbeep
+       LINE ox%+px%*32+31,oy%-py%*32,ox%+px%*32+31,oy%-py%*32-31
+       IF px%<width% THEN LINE ox%+(px%+1)*32,oy%-py%*32,ox%+(px%+1)*32,oy%-py%*32-31
+     ENDIF
+    ENDIF
+    REM move south
+    IF INKEY-42 THEN
+     IF maze%(px%,py%,2)=FALSE THEN
+
+      IF py%<width% THEN
+        py%+=1
+      ENDIF
+     ELSE
+       GCOL colCYAN TINT tintCYAN
+       PROCbeep
+       LINE ox%+px%*32,oy%-py%*32-31,ox%+px%*32+31,oy%-py%*32-31
+       IF py%<height% THEN LINE ox%+px%*32,oy%-(py%+1)*32,ox%+px%*32+31,oy%-(py%+1)*32
+     ENDIF
+    ENDIF
+    REM move north
+    IF INKEY-58 THEN
+     IF maze%(px%,py%,0)=FALSE THEN
+
+      IF py%>0 THEN
+        py%-=1
+      ENDIF
+     ELSE
+       GCOL colCYAN TINT tintCYAN
+       PROCbeep
+       LINE ox%+px%*32,oy%-py%*32,ox%+px%*32+31,oy%-py%*32
+       IF py%>0 THEN LINE ox%+px%*32,oy%-(py%-1)*32-31,ox%+px%*32+31,oy%-(py%-1)*32-31
+     ENDIF
+    ENDIF
+    IF oldpx%<>px% OR oldpy%<>py% THEN
+      GCOL colBLACK TINT tintBLACK
+      MOVE ox%+oldpx%*32+8,oy%-oldpy%*32-9:PRINT"#"
+      GCOL colWHITE TINT tintWHITE
+      MOVE ox%+px%*32+8,oy%-py%*32-9:PRINT"#"
+    ENDIF
+  ENDIF
+  IF TIME-t%>100 THEN
+    t%=TIME
+    secs%-=1
+    SOUND 3,-15,100,1
+    GCOL colBLACK TINT tintBLACK
+    MOVE ox%+(width%*32),oy%+40:PRINT"þþ"
+    GCOL colWHITE TINT tintWHITE
+    MOVE ox%+(width%*32),oy%+40:PRINT ;secs%
+  ENDIF
+UNTIL secs%<1 OR (px%=0 AND py%=0)
+REM win or lose, print maze on screen
+
+IF secs%<1 THEN
+  GCOL colRED TINT tintRED
+  PROCdrawmaze
+  PROClosesound
+  PROCpause(200)
+  gameover%=TRUE
+  REPEAT:UNTIL NOT INKEY-99
+ENDIF
+IF (px%=0 AND py%=0) THEN
+  GCOL colGREEN TINT tintGREEN:PROCdrawmaze
+  PROCwinsound
+  PROCpause(250)
+ENDIF
+
+SYS "OS_Byte",15,0
+
+VDU 4:OFF
+ENDPROC
+
+DEF PROCdrawmaze
+LOCAL x%,y%
+
+REM RECTANGLE 0,0,1279,1023
+FOR x%=0 TO width%
+  FOR y%=0 TO height%
+    PROCdrawcellofmaze(x%,y%)
+  NEXT
+NEXT
+ENDPROC
+
+DEF PROCdrawcellofmaze(x%,y%)
+REM RECTANGLE FILL x%*64,1023-y%*64-63,63,63
+
+IF maze%(x%,y%,0)=TRUE THEN
+  LINE ox%+x%*32,oy%-y%*32,ox%+x%*32+31,oy%-y%*32
+ENDIF
+IF maze%(x%,y%,1)=TRUE THEN
+  LINE ox%+x%*32+31,oy%-y%*32,ox%+x%*32+31,oy%-y%*32-31
+ENDIF
+IF maze%(x%,y%,2)=TRUE THEN
+  LINE ox%+x%*32,oy%-y%*32-31,ox%+x%*32+31,oy%-y%*32-31
+ENDIF
+IF maze%(x%,y%,3)=TRUE THEN
+  LINE ox%+x%*32,oy%-y%*32,ox%+x%*32,oy%-y%*32-31
+ENDIF
+ENDPROC
+
+REM maze generator
+DEF PROCmaze(x%,y%)
+LOCAL candidates%,direction%(),choice%,newx%,newy%,loop%,t%
+DIM direction%(3)
+REM we have now visited this cell, so flag bit 8 as such
+IF maze%(x%,y%,8)=FALSE THEN maze%(x%,y%,8)=TRUE:visited%+=1
+
+COLOUR colWHITE TINT tintWHITE
+
+PRINT TAB(17,12);RIGHT$(STR$(INT(visited%/((height%+1)*(width%+1))*100)+100),2)
+
+REM first check that its not a border, then check to see if all walls in
+REM adjacent cell are intact
+FOR loop%=1 TO 4
+candidates%=0
+
+REM North
+IF maze%(x%,y%,4)=0 THEN
+ IF maze%(x%,y%-1,8)=0 THEN
+  direction%(candidates%)=0
+  candidates%+=1
+ ENDIF
+ENDIF
+
+REM East
+IF maze%(x%,y%,5)=0 THEN
+ IF maze%(x%+1,y%,8)=0 THEN
+  direction%(candidates%)=1
+  candidates%+=1
+ ENDIF
+ENDIF
+
+REM South
+IF maze%(x%,y%,6)=0 THEN
+ IF maze%(x%,y%+1,8)=0 THEN
+  direction%(candidates%)=2
+  candidates%+=1
+ ENDIF
+ENDIF
+
+REM West
+IF maze%(x%,y%,7)=0 THEN
+ IF maze%(x%-1,y%,8)=0 THEN
+  direction%(candidates%)=3
+  candidates%+=1
+ ENDIF
+ENDIF
+
+
+IF candidates%>0 THEN
+  REM choose a direction at random:
+  choice%=direction%(RND(candidates%)-1)
+  CASE choice% OF
+    WHEN 0:REM North
+      maze%(x%,y%,0)=0
+      maze%(x%,y%-1,2)=0
+      newx%=x%:newy%=y%-1
+    WHEN 1:REM East
+      maze%(x%,y%,1)=0
+      maze%(x%+1,y%,3)=0
+      newx%=x%+1:newy%=y%
+    WHEN 2:REM South
+      maze%(x%,y%,2)=0
+      maze%(x%,y%+1,0)=0
+      newx%=x%:newy%=y%+1
+    WHEN 3:REM West
+      maze%(x%,y%,3)=0
+      maze%(x%-1,y%,1)=0
+      newx%=x%-1:newy%=y%
+  ENDCASE
+  REM recurse time!
+  REM some versions of depth-1st search create a stack, but why bother when
+  REM BASIC has a perfectly servicable one!
+
+  PROCmaze(newx%,newy%)
+ENDIF
+NEXT loop%
+ENDPROC
+
+
+REM---------------------------------------------------------------
+
+DEF PROCtitles
+CLS
+COLOUR colWHITE TINT colWHITE
+PROCplotmazenew(FALSE)
+COLOUR colBLACK+128 TINT tintBLACK
+COLOUR colMAGENTA TINT tintMAGENTA
+
+PRINT TAB(0,4);"Version "+version$;
+IF testing% THEN PRINT"(test)"
+COLOUR colWHITE TINT tintWHITE
+PRINT TAB(0,6);"Press any key to start"
+COLOUR colWHITE+128 TINT tintWHITE
+COLOUR colRED TINT tintRED
+PRINT TAB(5,24);"                              "
+PRINT TAB(5,25);"      by Robert Hampton       "
+PRINT TAB(5,26);"                              "
+COLOUR colBLACK+128 TINT tintBLACK
+COLOUR colCYAN TINT tintCYAN
+
+PRINT TAB(5,28);"www.roberthampton.me.uk/riscos"
+ENDPROC
+
+DEF FNsystemvar(Var$):LOCAL len
+SYS "XOS_ReadVarVal",Var$,miscblock%,255,0,3 TO,,len
+miscblock%?len=13
+=$miscblock%
+
+
+DEF FNtoupper(S$)
+LOCAL R$,A%,C%,L%:L%=LEN(S$):R$="":IF L%=0 THEN =""
+FOR A%=1 TO L%:C%=ASC(MID$(S$,A%,1)):IF C%>96 AND C%<123 THEN C%-=32
+R$+=CHR$(C%):NEXT:=R$
+
+DEF PROCtune
+LOCAL total%
+total%=0
+PROCphrase1
+PROCsound(61,5)
+PROCsound(73,5)
+PROCsound(69,5)
+PROCsound(61,5)
+PROCsound(53,5)
+PROCsound(101,5)
+PROCsound(97,5)
+PROCsound(89,5)
+PROCsound(81,5)
+PROCsound(73,5)
+PROCsound(69,5)
+PROCsound(61,5)
+PROCphrase1
+PROCsound(61,5)
+PROCsound(73,5)
+PROCsound(69,5)
+PROCsound(61,5)
+PROCsound(53,5)
+PROCsound(81,5)
+PROCsound(61,5)
+PROCsound(69,5)
+PROCsound(53,20)
+ENDPROC
+
+DEF PROCphrase1
+PROCsound(53,20)
+PROCsound(61,5)
+PROCsound(73,5)
+PROCsound(69,5)
+PROCsound(61,5)
+PROCsound(81,10)
+PROCsound(81,10)
+PROCsound(81,5)
+PROCsound(89,5)
+PROCsound(69,5)
+PROCsound(73,5)
+PROCsound(61,10)
+PROCsound(61,10)
+ENDPROC
+
+DEF PROCsound(pitch%,duration%)
+SOUND 2,-15,pitch%,duration%,total%
+total%+=duration%*2
+ENDPROC
+
+DEF PROCwinsound
+LOCAL loop2%
+FOR loop2%=10 TO 50
+  SOUND 1,-15,loop2%*5,5,5*(loop2%-10)
+
+NEXT loop2%
+ENDPROC
+
+DEF PROClosesound
+SOUND 3,-15,100,5
+ENDPROC
+
+DEF PROCbeep
+SOUND 1,-15,200,5
+ENDPROC
+
+DEF FNtitle_screen
+LOCAL loop%,key$,c%,pitch%,duration%,after%
+PROCtitles
+COLOUR colBLUE+128 TINT tintBLUE
+FOR loop%=1 TO 15
+PRINT TAB(5,loop%+7);STRING$(30," ")
+NEXT loop%
+COLOUR colYELLOW TINT tintYELLOW
+PRINT TAB(14,9);"HIGH SCORES"
+c%=0
+FOR loop%=1 TO 10
+IF c%=0 THEN
+  COLOUR colYELLOW TINT tintYELLOW
+  c%=1
+ELSE
+  COLOUR colCYAN TINT tintCYAN
+  c%=0
+ENDIF
+PRINT TAB(6,loop%+10);
+IF loop%<10 THEN PRINT" ";
+PRINT ;loop%;". ";hiname$(loop%); TAB(28,loop%+10);RIGHT$(STR$(hiscore%(loop%)+1000000),6)
+NEXT loop%
+SYS "OS_Byte",21,0
+TEMPO 1000
+BEATS 24
+RESTORE +0
+REPEAT
+  REPEAT:key$=INKEY$(0):UNTIL BEAT=0 OR key$<>""
+  IF key$="" THEN
+    after%=0
+    REPEAT
+      READ pitch%
+      IF pitch%>=0 THEN
+        READ duration%
+        IF pitch%>0 THEN SOUND 2,-15,pitch%,duration%,after%
+        after%+=duration%
+      ENDIF
+    UNTIL pitch%<0
+    IF pitch%=-2 THEN RESTORE +0
+    REPEAT:key$=INKEY$(0):UNTIL BEAT>0 OR key$<>""
+  ENDIF
+UNTIL key$<>""
+TEMPO 4096
+BEATS 0
+
+
+=key$
+
+
+DATA 0,16,117,4,113,4,-1
+DATA 117,4,113,4,117,4,97,4,109,4,101,4,-1
+DATA 89,8,0,4,53,4,69,4,89,4,-1
+DATA 97,8,0,4,69,4,85,4,97,4,-1
+DATA 101,8,0,4,69,4,117,4,113,4,-1
+DATA 117,4,113,4,117,4,97,4,109,4,101,4,-1
+DATA 89,8,0,4,53,4,69,4,89,4,-1
+DATA 97,8,0,4,69,4,101,4,97,4,-1
+DATA 89,24,-1
+DATA 0,16,117,4,113,4,-1
+DATA 117,4,113,4,117,4,97,4,109,4,101,4,-1
+DATA 89,8,0,4,53,4,69,4,89,4,-1
+DATA 97,8,0,4,69,4,85,4,97,4,-1
+DATA 101,8,0,4,69,4,117,4,113,4,-1
+DATA 117,4,113,4,117,4,97,4,109,4,101,4,-1
+DATA 89,8,0,4,53,4,69,4,89,4,-1
+DATA 97,8,0,4,69,4,101,4,97,4,-1
+DATA 89,8,0,4,97,4,101,4,109,4,-1
+DATA 117,12,81,4,121,4,117,4,-1
+DATA 109,12,73,4,117,4,109,4,-1
+DATA 101,12,69,4,109,4,101,4,-1
+DATA 97,8,0,4,69,4,117,4,69,4,-1
+DATA 117,4,117,4,165,4,113,4,117,4,113,4,-1
+DATA 117,4,113,4,117,4,113,4,117,4,113,4,-1
+DATA 117,4,113,4,117,4,97,4,109,4,101,4,-1
+DATA 89,8,0,4,53,4,69,4,89,4,-1
+DATA 97,8,0,4,69,4,85,4,97,4,-1
+DATA 101,8,0,4,69,4,117,4,113,4,-1
+DATA 117,4,113,4,117,4,97,4,109,4,101,4,-1
+DATA 89,8,0,4,53,4,69,4,89,4,-1
+DATA 97,8,0,4,69,4,101,4,97,4,-1
+DATA 89,8,0,4,97,4,101,4,109,4,-1
+DATA 117,12,81,4,121,4,117,4,-1
+DATA 109,12,73,4,117,4,109,4,-1
+DATA 101,12,69,4,109,4,101,4,-1
+DATA 97,8,0,4,69,4,117,4,69,4,-1
+DATA 117,4,117,4,165,4,113,4,117,4,113,4,-1
+DATA 117,4,113,4,117,4,113,4,117,4,113,4,-1
+DATA 117,4,113,4,117,4,97,4,109,4,101,4,-1
+DATA 89,8,0,4,53,4,69,4,89,4,-1
+DATA 97,8,0,4,69,4,85,4,97,4,-1
+DATA 101,8,0,4,69,4,117,4,113,4,-1
+DATA 117,4,113,4,117,4,97,4,109,4,101,4,-1
+DATA 89,8,0,4,53,4,69,4,89,4,-1
+DATA 97,8,0,4,69,4,101,4,97,4,-1
+DATA 89,24,-1
+DATA -2
+
+DEF PROCend
+ON ERROR OFF
+REM reset keyboard to earlier state
+SYS"OS_Byte",4,old_OSByte4
+SYS"OS_Byte",11,old_OSByte11
+SYS"OS_Byte",12,old_OSByte12
+REM flush buffers
+SYS"OS_Byte",21,0
+REM reset VDU 23 fonts
+SYS"OS_Byte",25,0
+REM reset sound
+TEMPO oldtempo%
+BEATS oldbeats%
+END
+ENDPROC
+
+DEF PROCinit
+DIM hiname$(10),hiscore%(10)
+DIM hiscorebuffer% 20
+DIM miscblock% 255
+colBLACK = 0 : tintBLACK = 0
+colRED = 3 : tintRED = 64
+colGREEN = 12 : tintGREEN = 128
+colYELLOW = 15 : tintYELLOW = 192
+colBLUE = 48 : tintBLUE = 0
+colMAGENTA = 51 : tintMAGENTA = 64
+colCYAN = 60 : tintCYAN = 128
+colWHITE = 63 : tintWHITE = 192
+choicesvar$=FNsystemvar("Choices$Path")
+usenewboot%=(choicesvar$<>"")
+IF usenewboot% THEN
+  REM this is necessary to accomodate the numerous
+  REM changes of High Scores files.
+  file%=OPENIN"Choices:MadMaze.HiScores"
+  IF file%=0 THEN
+    file%=OPENIN"<MadMaze$Dir>.HiScores"
+  ENDIF
+ELSE
+  file%=OPENIN"<MadMaze$Dir>.HiScores"
+ENDIF
+IF file%=0 THEN
+  FOR loop%=1 TO 10
+    hiname$(loop%)="Robert Hampton"
+    hiscore%(loop%)=0
+  NEXT loop%
+ELSE
+  FOR loop%=1 TO 10
+    INPUT#file%,hiname$(loop%)
+    INPUT#file%,hiscore%(loop%)
+  NEXT loop%
+ENDIF
+CLOSE#file%
+REM initialise
+DIM maze$(9),n%(10)
+maze$(1)="   þþþþþþþþþþþþþþþþþþþþþþþþþþþ þþþ þþþ  "
+maze$(2)="   þ        þ      þ         þþþ þþþ þþþ"
+maze$(3)="   þ    þþþþþþþþþþþþ                   þ"
+maze$(4)="   þþþþþþ        þ                þþþ  þ"
+maze$(5)="Sþþþ    þþþþþþþþþþþþþþþþþ þþþ þþþ þ þþþF"
+maze$(6)="þ  þþþþþþ        þ    þ þþþ þþþ þþþ   þ "
+maze$(7)="þ       þþþþþþþþþþþþþþþ              þþ "
+maze$(8)="þ  þþþ  þ   þ                 þþþþþ þþ  "
+maze$(9)="þþþþ þþþþ   þþþþþþþþþþþþþþþþþþþ   þþþ   "
+
+number_of_games%=13
+DIM gameused%(number_of_games%):gamesused%=0
+VDU 23,254,255,255,255,255,255,255,255,255
+VDU 23,255,028,054,054,028,008,008,024,024
+VDU 23,048,060,102,102,102,102,102,060,000
+score%=0
+SYS "OS_CheckModeValid",13 TO valid%
+IF valid%=-1 THEN
+  SYS "OS_CheckModeValid",28 TO valid%
+  IF valid%=-1 THEN ERROR 0,"Unable to find a suitable screen mode.":END
+  MODE 28
+  GCOL colWHITE TINT tintWHITE
+  RECTANGLE 304,208,672,544
+  VDU 28,20,45,59,14
+  VDU 24,320;224;959;735;
+  ORIGIN 320,224
+ELSE
+  MODE 13
+ENDIF
+OFF
+
+ENDPROC
+
